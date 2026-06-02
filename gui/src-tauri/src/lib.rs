@@ -3,23 +3,23 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::net::TcpStream;
 use std::sync::Mutex;
-use std::io::{BufRead, BufReader};
-use std::fs::File;
 use std::os::windows::process::CommandExt;
+use tokio::sync::oneshot;
+
+mod proxy;
 
 // ---------------------------------------------------------------------------
 // Path helpers
 // ---------------------------------------------------------------------------
 
 fn project_root() -> PathBuf {
-    // Prefer the EXE's parent directory (so the release/ folder works standalone).
-    // Also check a "resources" subdirectory for bundled content (MSI/NSIS installers).
+    // Prefer the EXE's parent directory or resources subdirectory (MSI/NSIS installers).
     // Fall back to CARGO_MANIFEST_DIR/../.. for dev mode (cargo run / tauri dev).
     if let Ok(exe) = std::env::current_exe() {
         if let Some(parent) = exe.parent() {
             for candidate in &[parent.to_path_buf(), parent.join("resources")] {
-                let proxy = candidate.join("proxy_server.py");
-                if proxy.exists() {
+                let config = candidate.join("config.json");
+                if config.exists() {
                     return candidate.clone();
                 }
             }
@@ -104,9 +104,9 @@ fn check_gateway_status(state: tauri::State<'_, ProxyState>) -> GatewayStatusRes
     let now = Local::now();
     let checked_at = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
-    // Check managed child
+    // Check managed axum task
     let (managed_child_running, managed_child_pid) = {
-        let mut guard = match state.child.lock() {
+        let guard = match state.handle.lock() {
             Ok(g) => g,
             Err(_) => {
                 return GatewayStatusResponse {
@@ -120,14 +120,8 @@ fn check_gateway_status(state: tauri::State<'_, ProxyState>) -> GatewayStatusRes
                 };
             }
         };
-        match &mut *guard {
-            Some(child) => {
-                match child.try_wait() {
-                    Ok(Some(_)) => (false, None),
-                    Ok(None) => (true, Some(child.id())),
-                    Err(_) => (false, None),
-                }
-            }
+        match &*guard {
+            Some(handle) => (!handle.is_finished(), None),
             None => (false, None),
         }
     };
@@ -735,32 +729,20 @@ fn create_new_log() -> Result<String, String> {
 // ---------------------------------------------------------------------------
 
 pub struct ProxyState {
-    child: Mutex<Option<std::process::Child>>,
+    handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    shutdown_tx: Mutex<Option<oneshot::Sender<()>>>,
 }
 
 impl ProxyState {
     pub fn new() -> Self {
         Self {
-            child: Mutex::new(None),
+            handle: Mutex::new(None),
+            shutdown_tx: Mutex::new(None),
         }
     }
 }
 
 // ---------------------------------------------------------------------------
-// Helper: read last N lines of a file
-// ---------------------------------------------------------------------------
-
-fn read_last_lines(path: &std::path::Path, n: usize) -> Vec<String> {
-    let file = match File::open(path) {
-        Ok(f) => f,
-        Err(_) => return Vec::new(),
-    };
-    let reader = BufReader::new(file);
-    let lines: Vec<String> = reader.lines().filter_map(|l| l.ok()).collect();
-    let start = if lines.len() > n { lines.len() - n } else { 0 };
-    lines[start..].to_vec()
-}
-
 // ---------------------------------------------------------------------------
 // Command 10: Start proxy
 // ---------------------------------------------------------------------------
@@ -778,194 +760,105 @@ pub struct StartProxyResult {
 fn start_proxy(state: tauri::State<'_, ProxyState>) -> Result<StartProxyResult, String> {
     let mut diag: Vec<String> = Vec::new();
 
-    let mut guard = state.child.lock().map_err(|e| e.to_string())?;
+    let mut handle_guard = state.handle.lock().map_err(|e| e.to_string())?;
+    let mut shutdown_guard = state.shutdown_tx.lock().map_err(|e| e.to_string())?;
 
-    if let Some(ref mut child) = *guard {
-        match child.try_wait() {
-            Ok(Some(_)) => *guard = None,
-            Ok(None) => return Ok(StartProxyResult {
-                success: false, pid: 0,
-                python: String::new(), dir: String::new(),
+    // Check if already running
+    if let Some(ref handle) = *handle_guard {
+        if !handle.is_finished() {
+            return Ok(StartProxyResult {
+                success: false,
+                pid: 0,
+                python: "rust-axum".into(),
+                dir: String::new(),
                 log: "already_running".into(),
-            }),
-            Err(e) => return Err(format!("Cannot check child status: {}", e)),
+            });
         }
+        *handle_guard = None;
+        *shutdown_guard = None;
     }
 
-    // Read config to determine which API key env var the active provider needs
-    let api_key_env = match get_active_api_key_env() {
-        Ok(env) => {
-            diag.push(format!("Active provider API key env: {}", env));
-            env
-        }
-        Err(e) => {
-            diag.push(format!("Cannot read active provider from config: {}", e));
-            return Err(format!("Cannot read config: {}", e));
-        }
+    // Load config via internal helper
+    let cfg = match load_gateway_config() {
+        Ok(c) => c,
+        Err(e) => return Err(format!("Cannot read config: {}", e)),
     };
 
-    let api_key_value = match std::env::var(&api_key_env) {
-        Ok(k) => {
-            diag.push(format!("{}: set (len={})", api_key_env, k.len()));
-            k
-        }
-        Err(_) => {
-            diag.push(format!("{}: NOT SET", api_key_env));
-            return Err(format!("{} not set — set it in the API Key tab first.", api_key_env));
-        }
-    };
+    let api_key_env = cfg
+        .providers
+        .get(&cfg.active_provider)
+        .map(|p| p.api_key_env.clone())
+        .unwrap_or_default();
+    diag.push(format!("Active provider API key env: {}", api_key_env));
 
-    let root = project_root();
-    diag.push(format!("project_root: {}", root.display()));
-
-    let proxy_py = root.join("proxy_server.py");
-    diag.push(format!("proxy_server.py exists: {}", proxy_py.exists()));
-
-    let config_json = root.join("config.json");
-    diag.push(format!("config.json exists: {}", config_json.exists()));
-
-    // Resolve python.exe via cmd so PATH matches the user's normal shell
-    let python = std::process::Command::new("cmd")
-        .args(["/C", "where python 2>nul"])
-        .creation_flags(0x08000000)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .ok()
-        .and_then(|out| String::from_utf8(out.stdout).ok())
-        .map(|s| s.lines().next().unwrap_or("").trim().to_string())
-        .filter(|s| !s.is_empty());
-    diag.push(format!("where python result: {:?}", python));
-
-    let python = python
-        .ok_or_else(|| format!("Python not found. Diagnostics:\n{}", diag.join("\n")))?;
-
-    diag.push(format!("Using python: {}", python));
-    diag.push(format!("Launching: {} proxy_server.py in {}", python, root.display()));
-
-    // stdout/stderr → file redirection (not piped) to avoid pipe buffer blocking uvicorn
-    let logs_dir = root.join("Communication-Logs");
-    std::fs::create_dir_all(&logs_dir)
-        .map_err(|e| format!("Cannot create log dir: {}", e))?;
-    let uvicorn_log_path = logs_dir.join("uvicorn-stdout-stderr.log");
-    diag.push(format!("uvicorn log: {}", uvicorn_log_path.display()));
-
-    // Write startup marker before spawning
-    {
-        use std::io::Write;
-        let now = Local::now();
-        let marker = format!(
-            "===== Starting proxy from GUI at {} =====\n\
-             project_root: {}\n\
-             python: {}\n\
-             command: {} proxy_server.py\n\
-             =====\n",
-            now.format("%Y-%m-%d %H:%M:%S"),
-            root.display(),
-            python,
-            python
-        );
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&uvicorn_log_path)
-        {
-            let _ = f.write_all(marker.as_bytes());
-        }
+    if std::env::var(&api_key_env).is_err() {
+        diag.push(format!("{}: NOT SET", api_key_env));
+        return Err(format!(
+            "{} not set — set it in the API Key tab first.",
+            api_key_env
+        ));
     }
+    diag.push(format!("{}: set", api_key_env));
 
-    let log_file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&uvicorn_log_path)
-        .map_err(|e| format!("Cannot open uvicorn log file: {}", e))?;
-    let err_file = log_file
-        .try_clone()
-        .map_err(|e| format!("Cannot clone uvicorn log file handle: {}", e))?;
+    // Resolve proxy config
+    let proxy_config = match proxy::resolve_proxy_config(&cfg) {
+        Ok(c) => {
+            diag.push(format!("Upstream: {}", c.upstream_url));
+            diag.push(format!("Provider: {} ({})", c.display_name, c.active_provider));
+            c
+        }
+        Err(e) => return Err(format!("Config error: {}", e)),
+    };
 
-    let mut child = std::process::Command::new(&python)
-        .arg("proxy_server.py")
-        .current_dir(&root)
-        .env(&api_key_env, &api_key_value)
-        .creation_flags(0x08000000)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::from(log_file))
-        .stderr(std::process::Stdio::from(err_file))
-        .spawn()
-        .map_err(|e| format!("Cannot start proxy: {}\nDiagnostics:\n{}", e, diag.join("\n")))?;
+    let host = proxy_config.server_host.clone();
+    let port = proxy_config.server_port;
+    diag.push(format!("Starting proxy on {}:{}", host, port));
 
-    let pid = child.id();
-    diag.push(format!("Spawned PID: {}", pid));
+    // Create shutdown channel
+    let (tx, rx) = oneshot::channel::<()>();
 
-    // Poll port 4000 until reachable or timeout (8s, 300ms intervals)
+    // Spawn the axum server on the existing tokio runtime
+    let handle = tokio::spawn(async move {
+        if let Err(e) = proxy::run_proxy_server(host, port, proxy_config, rx).await {
+            tracing::error!("Proxy server error: {}", e);
+        }
+    });
+
+    *handle_guard = Some(handle);
+    *shutdown_guard = Some(tx);
+
+    // Wait briefly for port to become reachable
     let start = std::time::Instant::now();
-    let timeout = std::time::Duration::from_secs(8);
-    let mut port_ok = false;
-
+    let timeout = std::time::Duration::from_secs(5);
     loop {
-        std::thread::sleep(std::time::Duration::from_millis(300));
-
-        // Check if process died
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                diag.push(format!("Process exited with code {:?} after {:.1}s", status.code(), start.elapsed().as_secs_f32()));
-                diag.push(format!("See uvicorn log: {}", uvicorn_log_path.display()));
-                // Read last 80 lines of uvicorn log
-                let tail = read_last_lines(&uvicorn_log_path, 80);
-                if !tail.is_empty() {
-                    diag.push("--- last 80 lines of uvicorn log ---".into());
-                    diag.extend(tail);
-                    diag.push("--- end of uvicorn log ---".into());
-                }
-                return Err(format!("Proxy exited during startup. Diagnostics:\n{}", diag.join("\n")));
-            }
-            Err(e) => {
-                return Err(format!("Cannot check proxy status: {}", e));
-            }
-            Ok(None) => {}
-        }
-
-        // Try TCP connect to 127.0.0.1:4000
-        match TcpStream::connect_timeout(
+        std::thread::sleep(std::time::Duration::from_millis(150));
+        if TcpStream::connect_timeout(
             &"127.0.0.1:4000".parse().unwrap(),
             std::time::Duration::from_millis(200),
-        ) {
-            Ok(_) => {
-                port_ok = true;
-                diag.push(format!("Port 4000 reachable after {:.1}s", start.elapsed().as_secs_f32()));
-                break;
-            }
-            Err(_) => {}
-        }
-
-        if start.elapsed() >= timeout {
+        )
+        .is_ok()
+        {
+            diag.push(format!(
+                "Port 4000 reachable after {:.1}s",
+                start.elapsed().as_secs_f32()
+            ));
             break;
         }
-    }
-
-    if !port_ok {
-        diag.push(format!("Port 4000 did not become reachable within {}s", timeout.as_secs()));
-        diag.push(format!("See uvicorn log: {}", uvicorn_log_path.display()));
-        // Read last 80 lines of uvicorn log
-        let tail = read_last_lines(&uvicorn_log_path, 80);
-        if !tail.is_empty() {
-            diag.push("--- last 80 lines of uvicorn log ---".into());
-            diag.extend(tail);
-            diag.push("--- end of uvicorn log ---".into());
+        if start.elapsed() >= timeout {
+            let _ = shutdown_guard.take().map(|tx| tx.send(()));
+            let _handle = handle_guard.take().unwrap();
+            return Err(format!(
+                "Proxy did not become reachable within {}s",
+                timeout.as_secs()
+            ));
         }
-        // Kill the process since it's not working
-        let _ = child.kill();
-        let _ = child.wait();
-        *guard = None;
-        return Err(format!("Proxy process started but port 4000 did not become reachable. Diagnostics:\n{}", diag.join("\n")));
     }
 
-    *guard = Some(child);
     Ok(StartProxyResult {
         success: true,
-        pid,
-        python,
-        dir: root.display().to_string(),
+        pid: 0,
+        python: "rust-axum".into(),
+        dir: String::new(),
         log: diag.join("\n"),
     })
 }
@@ -976,33 +869,31 @@ fn start_proxy(state: tauri::State<'_, ProxyState>) -> Result<StartProxyResult, 
 
 #[tauri::command]
 fn stop_proxy(state: tauri::State<'_, ProxyState>) -> Result<String, String> {
-    let mut guard = state.child.lock().map_err(|e| e.to_string())?;
+    let mut handle_guard = state.handle.lock().map_err(|e| e.to_string())?;
+    let mut shutdown_guard = state.shutdown_tx.lock().map_err(|e| e.to_string())?;
 
     let mut diag_parts: Vec<String> = Vec::new();
 
-    match guard.take() {
-        Some(mut child) => {
-            let pid = child.id();
-            diag_parts.push(format!("Managed child existed, PID={}", pid));
+    // Send shutdown signal
+    if let Some(tx) = shutdown_guard.take() {
+        let _ = tx.send(());
+        diag_parts.push("Shutdown signal sent".into());
+    } else {
+        diag_parts.push("No active shutdown channel".into());
+    }
 
-            let kill_res = child.kill();
-            let kill_msg = match &kill_res {
-                Ok(()) => "kill succeeded".to_string(),
-                Err(e) => format!("kill failed: {}", e),
-            };
-            diag_parts.push(kill_msg);
-
-            let wait_res = child.wait();
-            let wait_msg = match &wait_res {
-                Ok(status) => format!("wait succeeded, exit code={:?}", status.code()),
-                Err(e) => format!("wait failed: {}", e),
-            };
-            diag_parts.push(wait_msg);
+    // Wait for task to finish (blocking - runs on Tauri sync command thread)
+    if let Some(handle) = handle_guard.take() {
+        diag_parts.push("Waiting for proxy task to finish...".into());
+        // We need to block on the async join handle from a sync context
+        let rt = tokio::runtime::Handle::current();
+        match rt.block_on(handle) {
+            Ok(()) => diag_parts.push("Proxy task finished cleanly".into()),
+            Err(e) => diag_parts.push(format!("Proxy task panicked: {}", e)),
         }
-        None => {
-            diag_parts.push("No managed child existed".to_string());
-        }
-    };
+    } else {
+        diag_parts.push("No active proxy task".into());
+    }
 
     // Check port 4000 after stopping
     let port_reachable = TcpStream::connect_timeout(
@@ -1010,7 +901,6 @@ fn stop_proxy(state: tauri::State<'_, ProxyState>) -> Result<String, String> {
         std::time::Duration::from_millis(500),
     )
     .is_ok();
-
     diag_parts.push(format!("Port 4000 reachable after stop: {}", port_reachable));
 
     Ok(diag_parts.join("\n"))
@@ -1022,17 +912,9 @@ fn stop_proxy(state: tauri::State<'_, ProxyState>) -> Result<String, String> {
 
 #[tauri::command]
 fn proxy_status(state: tauri::State<'_, ProxyState>) -> Result<bool, String> {
-    let mut guard = state.child.lock().map_err(|e| e.to_string())?;
-
-    if let Some(ref mut child) = *guard {
-        match child.try_wait() {
-            Ok(Some(_)) => {
-                *guard = None;
-                Ok(false)
-            }
-            Ok(None) => Ok(true),
-            Err(e) => Err(format!("Cannot check child status: {}", e)),
-        }
+    let guard = state.handle.lock().map_err(|e| e.to_string())?;
+    if let Some(ref handle) = *guard {
+        Ok(!handle.is_finished())
     } else {
         Ok(false)
     }
