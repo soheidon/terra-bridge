@@ -20,11 +20,7 @@
     ],
     "licenseFile": "../../LICENSE",
     "resources": [
-      "resources/proxy_server.py",
-      "resources/config.json",
-      "resources/requirements.txt",
-      "resources/run.bat",
-      "resources/run-logging.bat"
+      "resources/config.json"
     ],
     "windows": {
       "wix": {
