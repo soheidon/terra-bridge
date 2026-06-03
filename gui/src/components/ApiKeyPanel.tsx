@@ -89,15 +89,15 @@ function ProviderRow({
           borderBottom: "1px solid #e5e7eb",
         }}
       >
-        <div style={{ ...COL_STYLE, fontWeight: 600, minWidth: 140, fontSize: 13 }}>
+        <div style={{ ...COL_STYLE, fontWeight: 600, minWidth: 130, fontSize: 13 }}>
           {provider.display_name}
         </div>
 
-        <div style={{ ...COL_STYLE, fontFamily: "var(--font-mono)", fontSize: 11, minWidth: 180, color: "#374151" }}>
+        <div style={{ ...COL_STYLE, fontFamily: "var(--font-mono)", fontSize: 11, minWidth: 170, color: "#374151" }}>
           {provider.api_key_env}
         </div>
 
-        <div style={{ minWidth: 80, padding: "6px 10px" }}>
+        <div style={{ minWidth: 60, padding: "2px 8px" }}>
           {keyStatus === null ? (
             <span style={{ fontSize: 11, color: "#6b7280" }}>...</span>
           ) : keyStatus.set ? (
@@ -245,21 +245,21 @@ export default function ApiKeyPanel() {
         style={{
           display: "flex",
           alignItems: "center",
-          padding: "1px 10px",
+          padding: "1px 0",
           marginBottom: 2,
         }}
       >
-        <div style={{ ...COL_STYLE, fontWeight: 600, fontSize: 10, color: "#6b7280", minWidth: 140 }}>
+        <div style={{ ...COL_STYLE, fontWeight: 600, fontSize: 10, color: "#6b7280", minWidth: 130 }}>
           Provider
         </div>
-        <div style={{ ...COL_STYLE, fontWeight: 600, fontSize: 10, color: "#6b7280", minWidth: 180 }}>
+        <div style={{ ...COL_STYLE, fontWeight: 600, fontSize: 10, color: "#6b7280", minWidth: 170 }}>
           Env Var
         </div>
-        <div style={{ minWidth: 80, padding: "6px 10px", fontSize: 10, fontWeight: 600, color: "#6b7280" }}>
+        <div style={{ minWidth: 60, padding: "2px 8px", fontSize: 10, fontWeight: 600, color: "#6b7280" }}>
           Status
         </div>
         <div style={{ flex: 1 }} />
-        <div style={{ width: 80, padding: "4px 0", fontSize: 10, fontWeight: 600, color: "#6b7280" }}>
+        <div style={{ width: 80, padding: "2px 10px", fontSize: 10, fontWeight: 600, color: "#6b7280" }}>
           Action
         </div>
       </div>
