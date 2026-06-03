@@ -6,19 +6,34 @@
 
 複数プロバイダーの Anthropic 互換 API を Claude Desktop / Claude Code から利用するためのプロキシ + GUI 管理ツール。
 
-Anthropic Messages API リクエストを選択中のプロバイダーに透過転送します。変更するのは `model` フィールドのみで、messages / thinking / tool_use / tool_result / streaming SSE は一切改変しません。
+Anthropic Messages API リクエストの `model` フィールドを読み取り、対応する upstream へ自動振り分け（モデルベースルーティング）。変更するのは `model` フィールドのみで、messages / thinking / tool_use / tool_result / streaming SSE は一切改変しません。
 
-GUI 管理ツール（Tauri v2 + React + TypeScript）でプロキシの起動・停止、プロバイダー切替、設定編集、ログ確認、API キー管理が可能です。
+GUI 管理ツール（Tauri v2 + React + TypeScript）でプロキシの起動・停止、設定編集、ログ確認、API キー管理が可能です。
 
 **v0.3.0 以降、Python は不要です。** プロキシサーバーは Rust (axum 0.7) で書き直され、Tauri アプリのバイナリに内蔵されています。
 
-### 対応プロバイダー
+### 公開モデル
 
-| プロバイダー | モデル | Vision | Video | Count Tokens |
-|-------------|--------|--------|-------|-------------|
-| DeepSeek | deepseek-v4-pro / deepseek-v4-flash | ✗ | ✗ | ✗ |
-| MiniMax | MiniMax-M3 | ✓ | ✓ | ✓ |
-| Kimi / Moonshot | kimi-k2.6 | ✓ | ✓ | ✗ |
+`/v1/models` が返す7モデル（全プロバイダーの全公開モデル）:
+
+| Gateway model | Upstream | Provider | Thinking | Vision/Video |
+|---|---|---|---|---|
+| `claude-deepseek-v4` | `deepseek-v4-pro` | DeepSeek | default | no |
+| `claude-deepseek-flash` | `deepseek-v4-flash` | DeepSeek | default | no |
+| `claude-minimax-m3` | `MiniMax-M3` | MiniMax | disabled | yes |
+| `claude-minimax-m3-thinking` | `MiniMax-M3` | MiniMax | default | yes |
+| `claude-minimax-m2-7-highspeed` | `MiniMax-M2.7-highspeed` | MiniMax | default | no |
+| `claude-kimi-k2-6` | `kimi-k2.6` | Kimi | disabled | yes |
+| `claude-kimi-k2-6-thinking` | `kimi-k2.6` | Kimi | default | yes |
+
+### プロバイダー機能マトリクス
+
+| プロバイダー | モデル | Vision | Video | Count Tokens | Thinking |
+|-------------|--------|--------|-------|-------------|----------|
+| DeepSeek | deepseek-v4-pro / deepseek-v4-flash | ✗ | ✗ | ✗ | default |
+| MiniMax | MiniMax-M3 | ✓ | ✓ | ✓ | default / disabled |
+| MiniMax | MiniMax-M2.7-highspeed | ✗ | ✗ | ✗ | default |
+| Kimi | kimi-k2.6 | ✓ | ✓ | ✗ | default / disabled |
 
 ### 必要環境
 
@@ -55,14 +70,40 @@ Windows ユーザー環境変数に永続保存されます。
 GUI の **Claude Desktop Setup** タブで設定 JSON をコピーし、Claude Desktop の設定ファイルに貼り付けます。
 自動検出された設定ファイルが一覧表示されるので、適切なファイルを開いて貼り付けてください。
 
+```json
+{
+  "inferenceProvider": "gateway",
+  "inferenceGatewayBaseUrl": "http://127.0.0.1:4000",
+  "inferenceGatewayApiKey": "sk-local-gateway",
+  "inferenceGatewayAuthScheme": "bearer",
+  "inferenceModels": [
+    { "name": "claude-deepseek-v4",              "labelOverride": "DeepSeek V4 Pro via Gateway" },
+    { "name": "claude-deepseek-flash",           "labelOverride": "DeepSeek V4 Flash via Gateway" },
+    { "name": "claude-minimax-m3",               "labelOverride": "MiniMax M3 via Gateway" },
+    { "name": "claude-minimax-m3-thinking",      "labelOverride": "MiniMax M3 (Thinking) via Gateway" },
+    { "name": "claude-minimax-m2-7-highspeed",   "labelOverride": "MiniMax M2.7 Highspeed via Gateway" },
+    { "name": "claude-kimi-k2-6",                "labelOverride": "Kimi K2.6 via Gateway" },
+    { "name": "claude-kimi-k2-6-thinking",       "labelOverride": "Kimi K2.6 (Thinking) via Gateway" }
+  ]
+}
+```
+
 ### エンドポイント
 
 | Method | Path | 説明 |
 |--------|------|------|
 | GET | `/health` | 死活確認 |
-| GET | `/v1/models` | モデル一覧（active_provider の visible_models） |
-| POST | `/v1/messages` | Messages API（stream/non-stream） |
+| GET | `/v1/models` | 全プロバイダーの公開モデル一覧（7モデル） |
+| POST | `/v1/messages` | Messages API（stream/non-stream）。モデルベースルーティング |
 | POST | `/v1/messages/count_tokens` | トークン数カウント（対応プロバイダーのみ） |
+
+### ルーティング
+
+モデルベースルーティング（v0.4.0〜）: リクエストの `model` フィールドを読み取り、対応するプロバイダーと upstream モデルに自動振り分け。`active_provider` の手動切替は不要。
+
+Thinking バリアント:
+- `claude-kimi-k2-6` / `claude-minimax-m3` → `thinking: {"type": "disabled"}` を注入
+- `*-thinking` バリアント → thinking はデフォルト動作（注入なし）
 
 ### 設定 (config.json)
 
@@ -79,14 +120,52 @@ GUI の **Claude Desktop Setup** タブで設定 JSON をコピーし、Claude D
       "supports_count_tokens": false,
       "supports_vision": false,
       "supports_video": false,
+      "supports_thinking": true,
       "model_map": {
-        "claude-sonnet-4-5": "deepseek-v4-pro",
-        "claude-haiku-4-5-20251001": "deepseek-v4-flash"
+        "claude-sonnet-4-5": "deepseek-v4-pro"
       },
-      "visible_models": [
-        "claude-deepseek-v4",
-        "claude-deepseek-flash"
-      ]
+      "visible_models": ["claude-deepseek-v4", "claude-deepseek-flash"],
+      "models": {
+        "claude-deepseek-v4": { "upstream_model": "deepseek-v4-pro" },
+        "claude-deepseek-flash": { "upstream_model": "deepseek-v4-flash" },
+        "claude-sonnet-4-5": { "upstream_model": "deepseek-v4-pro", "visible": false }
+      }
+    },
+    "minimax": {
+      "display_name": "MiniMax",
+      "upstream_url": "https://api.minimax.io/anthropic",
+      "api_key_env": "MINIMAX_API_KEY",
+      "default_model": "MiniMax-M3",
+      "supports_count_tokens": true,
+      "supports_vision": true,
+      "supports_video": true,
+      "models": {
+        "claude-minimax-m3": {
+          "upstream_model": "MiniMax-M3",
+          "thinking": "disabled"
+        },
+        "claude-minimax-m3-thinking": { "upstream_model": "MiniMax-M3" },
+        "claude-minimax-m2-7-highspeed": {
+          "upstream_model": "MiniMax-M2.7-highspeed",
+          "supports_vision": false,
+          "supports_video": false
+        }
+      }
+    },
+    "kimi": {
+      "display_name": "Kimi / Moonshot",
+      "upstream_url": "https://api.moonshot.ai/anthropic",
+      "api_key_env": "MOONSHOT_API_KEY",
+      "default_model": "kimi-k2.6",
+      "supports_vision": true,
+      "supports_video": true,
+      "models": {
+        "claude-kimi-k2-6": {
+          "upstream_model": "kimi-k2.6",
+          "thinking": "disabled"
+        },
+        "claude-kimi-k2-6-thinking": { "upstream_model": "kimi-k2.6" }
+      }
     }
   },
   "server": {
@@ -97,18 +176,17 @@ GUI の **Claude Desktop Setup** タブで設定 JSON をコピーし、Claude D
 }
 ```
 
+#### models セクションのキー
+
 | キー | 説明 |
 |-----|------|
-| `active_provider` | 現在有効なプロバイダー ID |
-| `providers.<id>.upstream_url` | Anthropic 互換 API のベース URL |
-| `providers.<id>.api_key_env` | API キーを保持する環境変数名 |
-| `providers.<id>.model_map` | Claude モデル名 → 実モデル名のマッピング |
-| `providers.<id>.visible_models` | `GET /v1/models` で公開するモデル名 |
-| `providers.<id>.default_model` | マップにない場合のフォールバック |
-| `providers.<id>.force_anthropic_version` | null 時は受信ヘッダを転送、設定時は強制上書き |
-| `providers.<id>.supports_vision` / `supports_video` | 画像/動画非対応プロバイダーでは 400 で拒否 |
-| `providers.<id>.supports_count_tokens` | false 時は count_tokens エンドポイントが 501 を返す |
-| `server.enable_cors` | CORS 有効/無効 |
+| `upstream_model` | upstream へ送る実モデル名（必須） |
+| `thinking` | `"disabled"` 時のみ thinking 抑制注入（省略可） |
+| `supports_vision` | モデル単位の画像サポート（省略時はプロバイダー既定値） |
+| `supports_video` | モデル単位の動画サポート（省略時はプロバイダー既定値） |
+| `visible` | `/v1/models` とダッシュボードに表示するか（デフォルト `true`） |
+
+`models` がない場合は `model_map` と `visible_models` にフォールバック（後方互換）。
 
 > 日本語 Windows では `config.json` を **Shift-JIS** で保存する必要があります。GUI の Gateway Settings タブでエンコーディングを切り替えて編集できます。
 
@@ -132,7 +210,7 @@ Anthropic-Proxy-Gateway/
 │   │   └── i18n/              日英翻訳
 │   ├── src-tauri/             Tauri バックエンド (Rust)
 │   │   ├── src/
-│   │   │   ├── lib.rs         18 Tauri コマンド + プロキシライフサイクル
+│   │   │   ├── lib.rs         21 Tauri コマンド + プロキシライフサイクル
 │   │   │   ├── main.rs        エントリーポイント
 │   │   │   └── proxy.rs       axum プロキシサーバー本体
 │   │   ├── resources/
@@ -176,11 +254,11 @@ taskkill /PID <PID> /F
 
 #### Invalid model name
 
-`config.json` の `model_map` に対象モデル名を追加してください。
+`config.json` の `models` セクションまたは `model_map` に対象モデル名を追加してください。
 
 #### 画像/動画が拒否される
 
-DeepSeek プロバイダーは画像・動画に対応していません。MiniMax または Kimi に切り替えてください。
+DeepSeek および MiniMax-M2.7-highspeed は画像・動画に対応していません。MiniMax-M3 または Kimi K2.6 を選択してください。
 
 ### ライセンス
 
@@ -194,19 +272,34 @@ MIT — 詳細は [LICENSE](LICENSE) を参照。
 
 A proxy + GUI manager that routes Claude Desktop / Claude Code API requests through multiple providers' Anthropic-compatible endpoints.
 
-Anthropic Messages API requests are transparently forwarded to the selected provider. Only the `model` field is rewritten — messages, thinking blocks, tool_use, tool_result, and streaming SSE pass through untouched.
+The proxy reads the `model` field from each request and automatically routes to the correct upstream provider (model-based routing). Only the `model` field is rewritten — messages, thinking blocks, tool_use, tool_result, and streaming SSE pass through untouched.
 
-The GUI management tool (Tauri v2 + React + TypeScript) provides start/stop control, provider switching, config editing, log viewing, and API key management from a native Windows window.
+The GUI management tool (Tauri v2 + React + TypeScript) provides start/stop control, config editing, log viewing, and API key management from a native Windows window.
 
 **As of v0.3.0, Python is no longer required.** The proxy server has been rewritten in Rust (axum 0.7) and is embedded directly in the Tauri app binary.
 
-### Supported Providers
+### Public Models
 
-| Provider | Model | Vision | Video | Count Tokens |
-|----------|-------|--------|-------|-------------|
-| DeepSeek | deepseek-v4-pro / deepseek-v4-flash | ✗ | ✗ | ✗ |
-| MiniMax | MiniMax-M3 | ✓ | ✓ | ✓ |
-| Kimi / Moonshot | kimi-k2.6 | ✓ | ✓ | ✗ |
+7 models returned by `/v1/models` (all public models from all providers):
+
+| Gateway model | Upstream | Provider | Thinking | Vision/Video |
+|---|---|---|---|---|
+| `claude-deepseek-v4` | `deepseek-v4-pro` | DeepSeek | default | no |
+| `claude-deepseek-flash` | `deepseek-v4-flash` | DeepSeek | default | no |
+| `claude-minimax-m3` | `MiniMax-M3` | MiniMax | disabled | yes |
+| `claude-minimax-m3-thinking` | `MiniMax-M3` | MiniMax | default | yes |
+| `claude-minimax-m2-7-highspeed` | `MiniMax-M2.7-highspeed` | MiniMax | default | no |
+| `claude-kimi-k2-6` | `kimi-k2.6` | Kimi | disabled | yes |
+| `claude-kimi-k2-6-thinking` | `kimi-k2.6` | Kimi | default | yes |
+
+### Provider Capability Matrix
+
+| Provider | Model | Vision | Video | Count Tokens | Thinking |
+|----------|-------|--------|-------|-------------|----------|
+| DeepSeek | deepseek-v4-pro / deepseek-v4-flash | ✗ | ✗ | ✗ | default |
+| MiniMax | MiniMax-M3 | ✓ | ✓ | ✓ | default / disabled |
+| MiniMax | MiniMax-M2.7-highspeed | ✗ | ✗ | ✗ | default |
+| Kimi | kimi-k2.6 | ✓ | ✓ | ✗ | default / disabled |
 
 ### Prerequisites
 
@@ -243,14 +336,40 @@ Click **Start Gateway** in the header. The proxy starts on `http://127.0.0.1:400
 Go to the **Claude Desktop Setup** tab, copy the JSON config, and paste it into your Claude Desktop settings file.
 Auto-detected config files are listed — open the appropriate one and paste.
 
+```json
+{
+  "inferenceProvider": "gateway",
+  "inferenceGatewayBaseUrl": "http://127.0.0.1:4000",
+  "inferenceGatewayApiKey": "sk-local-gateway",
+  "inferenceGatewayAuthScheme": "bearer",
+  "inferenceModels": [
+    { "name": "claude-deepseek-v4",              "labelOverride": "DeepSeek V4 Pro via Gateway" },
+    { "name": "claude-deepseek-flash",           "labelOverride": "DeepSeek V4 Flash via Gateway" },
+    { "name": "claude-minimax-m3",               "labelOverride": "MiniMax M3 via Gateway" },
+    { "name": "claude-minimax-m3-thinking",      "labelOverride": "MiniMax M3 (Thinking) via Gateway" },
+    { "name": "claude-minimax-m2-7-highspeed",   "labelOverride": "MiniMax M2.7 Highspeed via Gateway" },
+    { "name": "claude-kimi-k2-6",                "labelOverride": "Kimi K2.6 via Gateway" },
+    { "name": "claude-kimi-k2-6-thinking",       "labelOverride": "Kimi K2.6 (Thinking) via Gateway" }
+  ]
+}
+```
+
 ### Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check |
-| GET | `/v1/models` | List visible models for active provider |
-| POST | `/v1/messages` | Messages API (stream + non-stream) |
+| GET | `/v1/models` | All public models from all providers (7 models) |
+| POST | `/v1/messages` | Messages API (stream + non-stream). Model-based routing |
 | POST | `/v1/messages/count_tokens` | Token counting (supported providers only) |
+
+### Routing
+
+Model-based routing (since v0.4.0): the `model` field in each request determines the target provider and upstream model. No manual `active_provider` switching.
+
+Thinking variants:
+- `claude-kimi-k2-6` / `claude-minimax-m3` → injects `thinking: {"type": "disabled"}`
+- `*-thinking` variants → default behavior (no injection)
 
 ### Configuration (config.json)
 
@@ -263,18 +382,43 @@ Auto-detected config files are listed — open the appropriate one and paste.
       "upstream_url": "https://api.deepseek.com/anthropic",
       "api_key_env": "DEEPSEEK_API_KEY",
       "default_model": "deepseek-v4-pro",
-      "force_anthropic_version": null,
-      "supports_count_tokens": false,
       "supports_vision": false,
       "supports_video": false,
-      "model_map": {
-        "claude-sonnet-4-5": "deepseek-v4-pro",
-        "claude-haiku-4-5-20251001": "deepseek-v4-flash"
-      },
-      "visible_models": [
-        "claude-deepseek-v4",
-        "claude-deepseek-flash"
-      ]
+      "models": {
+        "claude-deepseek-v4": { "upstream_model": "deepseek-v4-pro" },
+        "claude-deepseek-flash": { "upstream_model": "deepseek-v4-flash" },
+        "claude-sonnet-4-5": { "upstream_model": "deepseek-v4-pro", "visible": false }
+      }
+    },
+    "minimax": {
+      "display_name": "MiniMax",
+      "upstream_url": "https://api.minimax.io/anthropic",
+      "api_key_env": "MINIMAX_API_KEY",
+      "default_model": "MiniMax-M3",
+      "supports_count_tokens": true,
+      "supports_vision": true,
+      "supports_video": true,
+      "models": {
+        "claude-minimax-m3": { "upstream_model": "MiniMax-M3", "thinking": "disabled" },
+        "claude-minimax-m3-thinking": { "upstream_model": "MiniMax-M3" },
+        "claude-minimax-m2-7-highspeed": {
+          "upstream_model": "MiniMax-M2.7-highspeed",
+          "supports_vision": false,
+          "supports_video": false
+        }
+      }
+    },
+    "kimi": {
+      "display_name": "Kimi / Moonshot",
+      "upstream_url": "https://api.moonshot.ai/anthropic",
+      "api_key_env": "MOONSHOT_API_KEY",
+      "default_model": "kimi-k2.6",
+      "supports_vision": true,
+      "supports_video": true,
+      "models": {
+        "claude-kimi-k2-6": { "upstream_model": "kimi-k2.6", "thinking": "disabled" },
+        "claude-kimi-k2-6-thinking": { "upstream_model": "kimi-k2.6" }
+      }
     }
   },
   "server": {
@@ -285,18 +429,17 @@ Auto-detected config files are listed — open the appropriate one and paste.
 }
 ```
 
+#### models section keys
+
 | Key | Description |
 |-----|-------------|
-| `active_provider` | Currently active provider ID |
-| `providers.<id>.upstream_url` | Anthropic-compatible API base URL |
-| `providers.<id>.api_key_env` | Environment variable holding the API key |
-| `providers.<id>.model_map` | Claude model name → actual model name mapping |
-| `providers.<id>.visible_models` | Models exposed via `GET /v1/models` |
-| `providers.<id>.default_model` | Fallback when model not in map |
-| `providers.<id>.force_anthropic_version` | `null` = passthrough; set to override |
-| `providers.<id>.supports_vision` / `supports_video` | Returns 400 for media on incapable providers |
-| `providers.<id>.supports_count_tokens` | Returns 501 on count_tokens for unsupported providers |
-| `server.enable_cors` | Enable/disable CORS middleware |
+| `upstream_model` | Actual model name sent to upstream (required) |
+| `thinking` | When `"disabled"`, injects thinking suppression (optional) |
+| `supports_vision` | Per-model image support (falls back to provider default) |
+| `supports_video` | Per-model video support (falls back to provider default) |
+| `visible` | Whether to expose in `/v1/models` and dashboard (default `true`) |
+
+When `models` is absent, falls back to `model_map` + `visible_models` (backward compatible).
 
 > Japanese Windows requires saving `config.json` as **Shift-JIS**. Use the Gateway Settings tab in the GUI to toggle encoding.
 
@@ -320,7 +463,7 @@ Anthropic-Proxy-Gateway/
 │   │   └── i18n/              Japanese/English translations
 │   ├── src-tauri/             Tauri backend (Rust)
 │   │   ├── src/
-│   │   │   ├── lib.rs         18 Tauri commands + proxy lifecycle
+│   │   │   ├── lib.rs         21 Tauri commands + proxy lifecycle
 │   │   │   ├── main.rs        Entry point
 │   │   │   └── proxy.rs       axum proxy server
 │   │   ├── resources/
@@ -364,11 +507,11 @@ taskkill /PID <PID> /F
 
 #### Invalid model name
 
-Add the model name to `model_map` in `config.json`.
+Add the model name to the `models` section or `model_map` in `config.json`.
 
 #### Image/video rejected
 
-The DeepSeek provider does not support images or video. Switch to MiniMax or Kimi.
+DeepSeek and MiniMax-M2.7-highspeed do not support images or video. Switch to MiniMax-M3 or Kimi K2.6.
 
 ### License
 
