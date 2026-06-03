@@ -120,7 +120,7 @@ pub fn resolve_proxy_config(cfg: &GatewayConfigResponse) -> Result<ProxyConfig, 
                         supports_video,
                     },
                 );
-                if entry.visible {
+                if entry.visible && !all_models.contains(gateway_model) {
                     all_models.push(gateway_model.clone());
                 }
             }
@@ -146,7 +146,7 @@ pub fn resolve_proxy_config(cfg: &GatewayConfigResponse) -> Result<ProxyConfig, 
                         supports_video: p.supports_video,
                     },
                 );
-                if visible_set.contains(gateway_model) {
+                if visible_set.contains(gateway_model) && !all_models.contains(gateway_model) {
                     all_models.push(gateway_model.clone());
                 }
             }

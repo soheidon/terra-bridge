@@ -27,53 +27,36 @@ export default function StatusPanel({ health, healthError, healthLoading }: Stat
     refresh();
   }, [refresh]);
 
-  // Build visible model routing table with full columns
+  // Build routing table: only the 2 Anthropic official shells for the active provider
+  const SHELL_MODELS = [
+    { name: "claude-sonnet-4-6", role: "Gateway Pro" },
+    { name: "claude-haiku-4-5",  role: "Gateway Flash" },
+  ];
   interface RoutedModelRow {
-    providerId: string;
-    displayName: string;
     gateway: string;
     upstream: string;
-    thinking: string;       // "default" | "disabled"
+    role: string;
+    thinking: string;
     visionVideo: boolean;
   }
   const routedModels: RoutedModelRow[] = [];
-  if (config) {
-    for (const [providerId, provider] of Object.entries(config.providers)) {
-      if (provider.models) {
-        for (const [gm, entry] of Object.entries(provider.models)) {
-          if (entry.visible !== false) {
-            const visionVideo = entry.supports_vision ?? provider.supports_vision;
-            const thinking = entry.thinking === "disabled" ? "disabled" : "default";
-            routedModels.push({
-              providerId,
-              displayName: provider.display_name,
-              gateway: gm,
-              upstream: entry.upstream_model,
-              thinking,
-              visionVideo,
-            });
-          }
-        }
-      } else {
-        // Fallback: only show visible_models, look up upstream in model_map
-        for (const gm of provider.visible_models) {
-          const upstream = provider.model_map[gm];
-          if (upstream) {
-            routedModels.push({
-              providerId,
-              displayName: provider.display_name,
-              gateway: gm,
-              upstream,
-              thinking: "default",
-              visionVideo: provider.supports_vision,
-            });
-          }
-        }
+  const activeProviderId = config?.active_provider ?? "deepseek";
+  const activeProvider = config?.providers[activeProviderId];
+  if (activeProvider?.models) {
+    for (const shell of SHELL_MODELS) {
+      const entry = activeProvider.models[shell.name];
+      if (entry) {
+        const visionVideo = entry.supports_vision ?? activeProvider.supports_vision;
+        const thinking = entry.thinking === "disabled" ? "disabled" : "default";
+        routedModels.push({
+          gateway: shell.name,
+          upstream: entry.upstream_model,
+          role: shell.role,
+          thinking,
+          visionVideo,
+        });
       }
     }
-    routedModels.sort((a, b) =>
-      a.displayName.localeCompare(b.displayName) || a.gateway.localeCompare(b.gateway)
-    );
   }
 
   return (
@@ -135,29 +118,32 @@ export default function StatusPanel({ health, healthError, healthLoading }: Stat
           </div>
         </div>
 
-        {/* Available models table */}
+        {/* Routing table: active provider's shell → upstream mapping */}
         {routedModels.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
               {t("statusPanel.availableModels")}
+              {" — "}
+              {t("statusPanel.activeProvider")}{" "}
+              {activeProvider?.display_name ?? activeProviderId}
             </div>
             <div style={{ overflowX: "auto" }}>
               <table className="model-routing-table">
                 <thead>
                   <tr>
-                    <th>{t("statusPanel.colProvider")}</th>
                     <th>{t("statusPanel.colGateway")}</th>
                     <th>{t("statusPanel.colUpstream")}</th>
+                    <th>{t("statusPanel.colRole")}</th>
                     <th>{t("statusPanel.colThinking")}</th>
                     <th>{t("statusPanel.colVision")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {routedModels.map(({ providerId, displayName, gateway, upstream, thinking, visionVideo }) => (
-                    <tr key={`${providerId}:${gateway}`}>
-                      <td>{displayName}</td>
+                  {routedModels.map(({ gateway, upstream, role, thinking, visionVideo }) => (
+                    <tr key={gateway}>
                       <td className="mono">{gateway}</td>
                       <td className="mono" style={{ color: "var(--text-muted)" }}>{upstream}</td>
+                      <td style={{ fontWeight: 600 }}>{role}</td>
                       <td>
                         <span className={`badge ${thinking === "disabled" ? "badge-blue" : "badge-gray"}`}>
                           {thinking === "disabled" ? t("statusPanel.thinkingDisabled") : t("statusPanel.thinkingDefault")}
