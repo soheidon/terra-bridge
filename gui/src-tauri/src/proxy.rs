@@ -70,30 +70,11 @@ pub fn resolve_proxy_config(cfg: &GatewayConfigResponse) -> Result<ProxyConfig, 
     let mut provider_ids: Vec<&String> = cfg.providers.keys().collect();
     provider_ids.sort();
 
+    // ── Pass 1: Build model route table (no API keys needed yet) ──
     for provider_id in &provider_ids {
         let p = &cfg.providers[*provider_id];
-        let api_key = std::env::var(&p.api_key_env).map_err(|_| {
-            format!(
-                "{} not set — set it in the API Key tab first.",
-                p.api_key_env
-            )
-        })?;
-
-        providers.insert(
-            (*provider_id).clone(),
-            ProviderRoute {
-                display_name: p.display_name.clone(),
-                upstream_url: p.upstream_url.clone(),
-                api_key,
-                api_key_env: p.api_key_env.clone(),
-                force_anthropic_version: p.force_anthropic_version.clone(),
-                supports_count_tokens: p.supports_count_tokens,
-            },
-        );
-
         let is_active = Some(provider_id.as_str()) == active;
 
-        // Build reverse mapping from models or model_map
         if let Some(ref models) = p.models {
             let mut model_names: Vec<&String> = models.keys().collect();
             model_names.sort();
@@ -155,6 +136,35 @@ pub fn resolve_proxy_config(cfg: &GatewayConfigResponse) -> Result<ProxyConfig, 
 
     if model_route.is_empty() {
         return Err("No models configured. Add models or model_map entries to config.json.".into());
+    }
+
+    // ── Pass 2: Only check API keys for providers actually referenced by the route table ──
+    let referenced_providers: std::collections::HashSet<&String> =
+        model_route.values().map(|e| &e.provider_id).collect();
+
+    for provider_id in &provider_ids {
+        if !referenced_providers.contains(provider_id) {
+            continue; // Skip providers not used by any active model route
+        }
+        let p = &cfg.providers[*provider_id];
+        let api_key = std::env::var(&p.api_key_env).map_err(|_| {
+            format!(
+                "{} not set — set it in the API Key tab first.",
+                p.api_key_env
+            )
+        })?;
+
+        providers.insert(
+            (*provider_id).clone(),
+            ProviderRoute {
+                display_name: p.display_name.clone(),
+                upstream_url: p.upstream_url.clone(),
+                api_key,
+                api_key_env: p.api_key_env.clone(),
+                force_anthropic_version: p.force_anthropic_version.clone(),
+                supports_count_tokens: p.supports_count_tokens,
+            },
+        );
     }
 
     let fallback = cfg
