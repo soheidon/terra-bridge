@@ -32,6 +32,15 @@ export const translations = {
     "statusPanel.routing": "Routing",
     "statusPanel.routingModelBased": "Model-based",
     "statusPanel.availableModels": "Available models",
+    "statusPanel.colProvider": "Provider",
+    "statusPanel.colGateway": "Gateway model",
+    "statusPanel.colUpstream": "Upstream",
+    "statusPanel.colThinking": "Thinking",
+    "statusPanel.colVision": "Vision/Video",
+    "statusPanel.thinkingDefault": "default",
+    "statusPanel.thinkingDisabled": "disabled",
+    "statusPanel.yes": "yes",
+    "statusPanel.no": "no",
 
     // ConfigPanel
     "configPanel.header": "Config (config.json)",
@@ -134,6 +143,15 @@ export const translations = {
     "statusPanel.routing": "ルーティング",
     "statusPanel.routingModelBased": "モデルベース",
     "statusPanel.availableModels": "利用可能モデル",
+    "statusPanel.colProvider": "プロバイダ",
+    "statusPanel.colGateway": "Gatewayモデル",
+    "statusPanel.colUpstream": "Upstream",
+    "statusPanel.colThinking": "Thinking",
+    "statusPanel.colVision": "画像/動画",
+    "statusPanel.thinkingDefault": "default",
+    "statusPanel.thinkingDisabled": "disabled",
+    "statusPanel.yes": "yes",
+    "statusPanel.no": "no",
 
     // ConfigPanel
     "configPanel.header": "設定 (config.json)",

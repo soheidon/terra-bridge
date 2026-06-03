@@ -26,20 +26,33 @@ pub struct ProviderRoute {
     #[allow(dead_code)]
     pub api_key_env: String,
     pub force_anthropic_version: Option<String>,
+    pub supports_count_tokens: bool,
+}
+
+#[derive(Clone, Debug)]
+pub enum ThinkingOverride {
+    Disabled,
+    Default,
+}
+
+#[derive(Clone)]
+pub struct ModelRouteEntry {
+    pub provider_id: String,
+    pub upstream_model: String,
+    pub thinking: ThinkingOverride,
     pub supports_vision: bool,
     pub supports_video: bool,
-    pub supports_count_tokens: bool,
 }
 
 #[derive(Clone)]
 pub struct ProxyConfig {
-    /// gateway_model → (provider_id, upstream_model)
-    pub model_route: HashMap<String, (String, String)>,
+    /// gateway_model → routing info
+    pub model_route: HashMap<String, ModelRouteEntry>,
     /// provider_id → route info
     pub providers: HashMap<String, ProviderRoute>,
-    /// Fallback provider id (from routing.fallback_provider or active_provider)
+    /// Fallback provider id
     pub fallback_provider: String,
-    /// All visible model names (for /v1/models)
+    /// All visible model names in display order (for /v1/models)
     pub all_models: Vec<String>,
     pub server_host: String,
     pub server_port: u16,
@@ -48,10 +61,15 @@ pub struct ProxyConfig {
 
 pub fn resolve_proxy_config(cfg: &GatewayConfigResponse) -> Result<ProxyConfig, String> {
     let mut providers: HashMap<String, ProviderRoute> = HashMap::new();
-    let mut model_route: HashMap<String, (String, String)> = HashMap::new();
+    let mut model_route: HashMap<String, ModelRouteEntry> = HashMap::new();
     let mut all_models: Vec<String> = Vec::new();
 
-    for (provider_id, p) in &cfg.providers {
+    // Process providers in stable order
+    let mut provider_ids: Vec<&String> = cfg.providers.keys().collect();
+    provider_ids.sort();
+
+    for provider_id in &provider_ids {
+        let p = &cfg.providers[*provider_id];
         let api_key = std::env::var(&p.api_key_env).map_err(|_| {
             format!(
                 "{} not set — set it in the API Key tab first.",
@@ -60,34 +78,71 @@ pub fn resolve_proxy_config(cfg: &GatewayConfigResponse) -> Result<ProxyConfig, 
         })?;
 
         providers.insert(
-            provider_id.clone(),
+            (*provider_id).clone(),
             ProviderRoute {
                 display_name: p.display_name.clone(),
                 upstream_url: p.upstream_url.clone(),
                 api_key,
                 api_key_env: p.api_key_env.clone(),
                 force_anthropic_version: p.force_anthropic_version.clone(),
-                supports_vision: p.supports_vision,
-                supports_video: p.supports_video,
                 supports_count_tokens: p.supports_count_tokens,
             },
         );
 
-        // Build reverse mapping: gateway_model → (provider_id, upstream_model)
-        for (gateway_model, upstream_model) in &p.model_map {
-            model_route.insert(
-                gateway_model.clone(),
-                (provider_id.clone(), upstream_model.clone()),
-            );
-            all_models.push(gateway_model.clone());
+        // Build reverse mapping from models or model_map
+        if let Some(ref models) = p.models {
+            let mut model_names: Vec<&String> = models.keys().collect();
+            model_names.sort();
+            for gateway_model in model_names {
+                let entry = &models[gateway_model];
+                let thinking = match entry.thinking.as_deref() {
+                    Some("disabled") => ThinkingOverride::Disabled,
+                    _ => ThinkingOverride::Default,
+                };
+                let supports_vision = entry.supports_vision.unwrap_or(p.supports_vision);
+                let supports_video = entry.supports_video.unwrap_or(p.supports_video);
+                model_route.insert(
+                    gateway_model.clone(),
+                    ModelRouteEntry {
+                        provider_id: (*provider_id).clone(),
+                        upstream_model: entry.upstream_model.clone(),
+                        thinking,
+                        supports_vision,
+                        supports_video,
+                    },
+                );
+                if entry.visible {
+                    all_models.push(gateway_model.clone());
+                }
+            }
+        } else {
+            // Fallback to legacy model_map — route all aliases, but only expose visible_models
+            let visible_set: std::collections::HashSet<&String> = p.visible_models.iter().collect();
+            let mut m_names: Vec<&String> = p.model_map.keys().collect();
+            m_names.sort();
+            for gateway_model in m_names {
+                let upstream_model = &p.model_map[gateway_model];
+                model_route.insert(
+                    gateway_model.clone(),
+                    ModelRouteEntry {
+                        provider_id: (*provider_id).clone(),
+                        upstream_model: upstream_model.clone(),
+                        thinking: ThinkingOverride::Default,
+                        supports_vision: p.supports_vision,
+                        supports_video: p.supports_video,
+                    },
+                );
+                if visible_set.contains(gateway_model) {
+                    all_models.push(gateway_model.clone());
+                }
+            }
         }
     }
 
     if model_route.is_empty() {
-        return Err("No models configured. Add model_map entries to config.json.".into());
+        return Err("No models configured. Add models or model_map entries to config.json.".into());
     }
 
-    // fallback: routing.fallback_provider > active_provider > first provider
     let fallback = cfg
         .active_provider
         .clone()
@@ -121,43 +176,42 @@ fn build_reqwest_client() -> reqwest::Client {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Look up a model and return (provider_id, provider_route, upstream_model).
+/// Look up a model and return (entry, provider_route).
 fn resolve_model<'a>(
     model: &str,
     config: &'a ProxyConfig,
-) -> Result<(&'a str, &'a ProviderRoute, &'a str), (StatusCode, Json<Value>)> {
-    let (provider_id, upstream_model) =
-        config.model_route.get(model).ok_or_else(|| {
-            let available = config.all_models.join(", ");
-            (
-                StatusCode::BAD_REQUEST,
-                Json(json!({
-                    "type": "error",
-                    "error": {
-                        "type": "invalid_request_error",
-                        "message": format!(
-                            "Unknown model '{}'. Available models: {}",
-                            model, available
-                        )
-                    }
-                })),
-            )
-        })?;
+) -> Result<(&'a ModelRouteEntry, &'a ProviderRoute), (StatusCode, Json<Value>)> {
+    let entry = config.model_route.get(model).ok_or_else(|| {
+        let available = config.all_models.join(", ");
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "type": "error",
+                "error": {
+                    "type": "invalid_request_error",
+                    "message": format!(
+                        "Unknown model '{}'. Available models: {}",
+                        model, available
+                    )
+                }
+            })),
+        )
+    })?;
 
-    let route = config.providers.get(provider_id).ok_or_else(|| {
+    let route = config.providers.get(&entry.provider_id).ok_or_else(|| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({
                 "type": "error",
                 "error": {
                     "type": "server_error",
-                    "message": format!("Provider '{}' not found for model '{}'", provider_id, model)
+                    "message": format!("Provider '{}' not found for model '{}'", entry.provider_id, model)
                 }
             })),
         )
     })?;
 
-    Ok((provider_id.as_str(), route, upstream_model.as_str()))
+    Ok((entry, route))
 }
 
 fn detect_media_types(messages: &[Value]) -> (bool, bool) {
@@ -183,10 +237,11 @@ fn detect_media_types(messages: &[Value]) -> (bool, bool) {
 
 fn check_media_support(
     messages: &[Value],
-    route: &ProviderRoute,
+    entry: &ModelRouteEntry,
+    display_name: &str,
 ) -> Result<(), (StatusCode, Json<Value>)> {
     let (has_image, has_video) = detect_media_types(messages);
-    if has_image && !route.supports_vision {
+    if has_image && !entry.supports_vision {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(json!({
@@ -194,15 +249,15 @@ fn check_media_support(
                 "error": {
                     "type": "invalid_request_error",
                     "message": format!(
-                        "Provider '{}' does not support image input. \
+                        "Model '{}' does not support image input. \
                          Use a vision-capable model (e.g. claude-minimax-m3 or claude-kimi-k2-6).",
-                        route.display_name
+                        display_name
                     )
                 }
             })),
         ));
     }
-    if has_video && !route.supports_video {
+    if has_video && !entry.supports_video {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(json!({
@@ -210,8 +265,8 @@ fn check_media_support(
                 "error": {
                     "type": "invalid_request_error",
                     "message": format!(
-                        "Provider '{}' does not support video input.",
-                        route.display_name
+                        "Model '{}' does not support video input.",
+                        display_name
                     )
                 }
             })),
@@ -303,7 +358,7 @@ async fn proxy_count_tokens(
         })?;
 
     let model_in = body["model"].as_str().unwrap_or("");
-    let (_provider_id, route, upstream_model) = resolve_model(model_in, &config)?;
+    let (entry, route) = resolve_model(model_in, &config)?;
 
     if !route.supports_count_tokens {
         return Err((
@@ -321,7 +376,7 @@ async fn proxy_count_tokens(
         ));
     }
 
-    body["model"] = json!(upstream_model);
+    body["model"] = json!(entry.upstream_model);
 
     let client = build_reqwest_client();
     let upstream_resp = client
@@ -366,15 +421,23 @@ async fn proxy_messages(
         })?;
 
     let model_in = body["model"].as_str().unwrap_or("");
-    let (_provider_id, route, upstream_model) = resolve_model(model_in, &config)?;
+    let (entry, route) = resolve_model(model_in, &config)?;
 
-    // Check media support for the resolved provider
+    // Check media support for the resolved model
     if let Some(messages) = body.get("messages").and_then(|v| v.as_array()) {
-        check_media_support(messages, route)?;
+        check_media_support(messages, entry, &route.display_name)?;
+    }
+
+    // Apply thinking override: if model disables thinking and user has not set
+    // their own thinking field, inject { "type": "disabled" }.
+    if matches!(entry.thinking, ThinkingOverride::Disabled)
+        && !body.as_object().map_or(false, |o| o.contains_key("thinking"))
+    {
+        body["thinking"] = json!({"type": "disabled"});
     }
 
     // Rewrite model to upstream model name
-    body["model"] = json!(upstream_model);
+    body["model"] = json!(entry.upstream_model);
 
     let is_stream = body.get("stream").and_then(|v| v.as_bool()).unwrap_or(false);
 
