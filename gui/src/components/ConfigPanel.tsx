@@ -76,7 +76,10 @@ export function ConfigPanelContent() {
       <h3>{t("configPanel.header")}</h3>
       <p className="tile-desc">{t("configPanel.advancedWarning")}</p>
       {data?.config_path && (
-        <div className="tile-path">{data.config_path}</div>
+        <div className="tile-path">
+          {t("configPanel.configPath")}{" "}
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{data.config_path}</span>
+        </div>
       )}
       <div className="tile-actions">
         <button className="btn btn-small" onClick={openConfigFile}>
@@ -89,7 +92,7 @@ export function ConfigPanelContent() {
           className="btn btn-small"
           onClick={() => setExpanded(!expanded)}
         >
-          {expanded ? t("apiKeyPanel.collapse") : "Show Advanced"}
+          {expanded ? t("apiKeyPanel.collapse") : t("configPanel.viewConfig")}
         </button>
       </div>
 
