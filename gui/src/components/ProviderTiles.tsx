@@ -107,7 +107,6 @@ export default function ProviderTiles({ health, onConfigChanged }: ProviderTiles
   return (
     <div className="dashboard-section">
       <h3>{t("statusPanel.tileSelectProvider")}</h3>
-      <p className="section-desc">{t("statusPanel.tileHint")}</p>
 
       <div className="provider-tile-grid">
         {tiles.map((tile) => (
