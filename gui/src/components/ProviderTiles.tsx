@@ -85,7 +85,7 @@ export default function ProviderTiles({ health, onConfigChanged }: ProviderTiles
       onConfigChanged?.();
     } catch (e) {
       console.error(e);
-      setSwitchMessage(String(e));
+      setSwitchMessage(t("statusPanel.restartFailed"));
     } finally {
       setSwitching(false);
       setTimeout(() => setSwitchMessage(null), 5000);
