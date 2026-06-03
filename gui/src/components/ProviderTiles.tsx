@@ -9,6 +9,8 @@ interface ProviderTilesProps {
   onConfigChanged?: () => void;
 }
 
+const PROVIDER_ORDER = ["deepseek", "minimax", "kimi"];
+
 const TILE_META: Record<string, { descKey: TranslationKey }> = {
   deepseek: { descKey: "statusPanel.tileDeepseekDesc" },
   minimax:  { descKey: "statusPanel.tileMinimaxDesc" },
@@ -29,7 +31,7 @@ interface TileData {
 function buildTiles(config: GatewayConfig | null): TileData[] {
   if (!config) return [];
   const activeId = config.active_provider ?? "deepseek";
-  return Object.entries(config.providers).map(([pid, p]) => {
+  const tiles = Object.entries(config.providers).map(([pid, p]) => {
     const pro = p.models?.["claude-sonnet-4-6"];
     const flash = p.models?.["claude-haiku-4-5"];
     return {
@@ -43,6 +45,13 @@ function buildTiles(config: GatewayConfig | null): TileData[] {
       isActive: pid === activeId,
     };
   });
+  // Sort by fixed order so tiles don't move on re-render
+  tiles.sort((a, b) => {
+    const ai = PROVIDER_ORDER.indexOf(a.providerId);
+    const bi = PROVIDER_ORDER.indexOf(b.providerId);
+    return (ai >= 0 ? ai : 99) - (bi >= 0 ? bi : 99);
+  });
+  return tiles;
 }
 
 export default function ProviderTiles({ health, onConfigChanged }: ProviderTilesProps) {
