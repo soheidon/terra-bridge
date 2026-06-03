@@ -52,7 +52,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 20px;
+  padding: 8px 20px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -77,30 +77,44 @@ body {
 }
 
 .btn-large {
-  padding: 8px 22px;
-  font-size: 14px;
+  padding: 12px 28px;
+  font-size: 15px;
   font-weight: 700;
   border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
 /* Settings page: tile cards */
 .settings-page {
-  padding: 16px 20px 20px;
+  padding: 10px 20px 14px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.settings-header-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .settings-tile {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 16px;
-  margin-bottom: 12px;
+  padding: 10px 16px 12px;
+  margin-bottom: 8px;
 }
 
 .settings-tile h3 {
-  margin: 0 0 6px 0;
+  margin: 0 0 4px 0;
   font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
@@ -109,7 +123,7 @@ body {
 .settings-tile .tile-desc {
   font-size: 11px;
   color: var(--text-muted);
-  margin: 0 0 10px 0;
+  margin: 0 0 6px 0;
   line-height: 1.4;
 }
 
@@ -414,12 +428,12 @@ body {
 
 .status-grid {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
 .status-card {
   flex: 1;
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1094,7 +1108,7 @@ body {
 /* ---- Provider tiles panel (standalone section) ---- */
 /* ---- Dashboard page wrapper ---- */
 .dashboard-page {
-  padding: 12px 20px 20px;
+  padding: 8px 20px 10px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -1108,19 +1122,19 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 16px 16px;
-  margin-bottom: 12px;
+  padding: 10px 16px 12px;
+  margin-bottom: 8px;
 }
 
 .dashboard-section h3 {
-  margin: 0 0 4px 0;
+  margin: 0 0 2px 0;
   font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .dashboard-section .section-desc {
-  margin: 0 0 12px 0;
+  margin: 0 0 6px 0;
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1.4;
@@ -1130,7 +1144,7 @@ body {
 .provider-tile-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
 @media (max-width: 750px) {
@@ -1163,7 +1177,7 @@ body {
 
 /* ---- Status panel: use card style like other sections ---- */
 .status-panel {
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
 }
 
 /* ---- Log panel: FIXED compact height ---- */
@@ -1171,12 +1185,12 @@ body {
   flex: 0 0 auto;
   min-height: 0;
   margin: 0;
-  max-height: 220px;
+  max-height: 170px;
 }
 
 .log-panel .panel-content {
   flex: 0 0 auto;
-  max-height: 140px;
+  max-height: 100px;
   overflow-y: auto;
 }
 
@@ -1187,12 +1201,12 @@ body {
   font-size: 11px;
   line-height: 1.4;
   color: var(--text-secondary);
-  max-height: 120px;
+  max-height: 90px;
   overflow-y: auto;
 }
 
 .log-content.compact {
-  max-height: 120px;
+  max-height: 90px;
   overflow-y: auto;
 }
 
@@ -1212,7 +1226,7 @@ body {
 .status-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
 @media (max-width: 700px) {

@@ -63,9 +63,12 @@ export default function App() {
         />
         {inSettings ? (
           <div className="settings-page">
-            <button className="tab-back" onClick={handleBack} style={{ marginBottom: 12 }}>
-              ← {t("settings.back")}
-            </button>
+            <div className="settings-header">
+              <button className="tab-back" onClick={handleBack}>
+                ← {t("settings.back")}
+              </button>
+              <span className="settings-header-title">{t("settings.title")}</span>
+            </div>
             <ApiKeyPanel />
             <ClaudeConfigPanelContent />
             <ConfigPanelContent />
