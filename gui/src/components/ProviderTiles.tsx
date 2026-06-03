@@ -135,10 +135,12 @@ export default function ProviderTiles({ health, onConfigChanged }: ProviderTiles
           ))}
         </div>
 
-      <div className="provider-switch-msg">
-        {switching && <div className="loading" />}
-        {switchMessage && !switching && <span>{switchMessage}</span>}
-      </div>
+      {(switching || switchMessage) && (
+        <div className="provider-switch-msg">
+          {switching && <div className="loading" />}
+          {switchMessage && !switching && <span>{switchMessage}</span>}
+        </div>
+      )}
     </div>
   );
 }

@@ -313,6 +313,7 @@ export interface LangDef {
 
 export const LANGS: LangDef[] = [
   { code: "en",    nativeName: "English" },
+  { code: "ja",    nativeName: "日本語" },
   { code: "zh-CN", nativeName: "中文(简体)" },
   { code: "zh-TW", nativeName: "中文(繁體)" },
   { code: "hi",    nativeName: "हिन्दी" },
@@ -321,7 +322,6 @@ export const LANGS: LangDef[] = [
   { code: "ar",    nativeName: "العربية" },
   { code: "pt",    nativeName: "Português" },
   { code: "ru",    nativeName: "Русский" },
-  { code: "ja",    nativeName: "日本語" },
   { code: "de",    nativeName: "Deutsch" },
   { code: "ko",    nativeName: "한국어" },
   { code: "it",    nativeName: "Italiano" },

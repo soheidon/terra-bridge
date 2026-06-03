@@ -40,11 +40,7 @@ export default function Header({
   return (
     <header className="app-header">
       <div className="header-proxy-section">
-        {inSettings ? (
-          <button className="tab-back" onClick={onBack}>
-            ← {t("settings.back")}
-          </button>
-        ) : (
+        {!inSettings && (
           <>
             {managedRunning ? (
               <button

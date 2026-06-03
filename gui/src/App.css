@@ -1016,11 +1016,11 @@ body {
   background: var(--bg-card);
   border: 2px solid var(--border);
   border-radius: 10px;
-  padding: 16px;
+  padding: 12px 14px;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   position: relative;
-  min-height: 120px;
+  min-height: 100px;
 }
 
 .provider-tile:hover {
@@ -1131,7 +1131,7 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 10px 16px 12px;
+  padding: 10px 16px 8px;
   margin-bottom: 8px;
 }
 
