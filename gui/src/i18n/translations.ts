@@ -93,6 +93,9 @@ export const translations = {
     "apiKeyPanel.currentActive": "Current active provider: {name}",
     "apiKeyPanel.visionSupported": "This provider supports image input.",
     "apiKeyPanel.visionNotSupported": "This provider does NOT support image input. To use vision/image features, switch the active provider to MiniMax or Kimi/Moonshot.",
+    "apiKeyPanel.noVision": "No",
+    "apiKeyPanel.edit": "Edit",
+    "apiKeyPanel.collapse": "Close",
   },
 
   ja: {
@@ -189,6 +192,9 @@ export const translations = {
     "apiKeyPanel.currentActive": "現在のアクティブプロバイダ: {name}",
     "apiKeyPanel.visionSupported": "このプロバイダは画像入力に対応しています。",
     "apiKeyPanel.visionNotSupported": "このプロバイダは画像入力に非対応です。画像認識を使う場合は MiniMax または Kimi / Moonshot を有効にしてください。",
+    "apiKeyPanel.noVision": "非対応",
+    "apiKeyPanel.edit": "編集",
+    "apiKeyPanel.collapse": "閉じる",
   },
 } as const;
 

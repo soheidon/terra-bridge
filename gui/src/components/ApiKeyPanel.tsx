@@ -3,35 +3,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "../i18n";
 import type { ApiKeyStatus, GatewayConfig, ProviderConfig, AllApiKeyStatus } from "../types";
 
-type ProviderCardState = {
-  keyText: string;
-  saving: boolean;
-  saved: boolean;
-  envVarName: string;
-  envVarSaving: boolean;
-  envVarSaved: boolean;
-  envVarError: string | null;
+const COL_STYLE: React.CSSProperties = {
+  padding: "6px 10px",
+  fontSize: 12,
+  color: "#1f2937",
+  whiteSpace: "nowrap",
 };
 
-function CapabilityBadge({ label, supported }: { label: string; supported: boolean }) {
-  return (
-    <span
-      style={{
-        fontSize: 11,
-        padding: "2px 8px",
-        borderRadius: 4,
-        fontWeight: 500,
-        background: supported ? "#e6f4ea" : "#f3f4f6",
-        color: supported ? "#137333" : "#6b7280",
-        border: supported ? "1px solid #b7dfc0" : "1px solid #d1d5db",
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
-function ProviderCard({
+function ProviderRow({
   providerId,
   provider,
   active,
@@ -49,109 +28,114 @@ function ProviderCard({
   switching: boolean;
 }) {
   const { t } = useTranslation();
-
-  const [state, setState] = useState<ProviderCardState>({
-    keyText: "",
-    saving: false,
-    saved: false,
-    envVarName: provider.api_key_env,
-    envVarSaving: false,
-    envVarSaved: false,
-    envVarError: null,
-  });
+  const [expanded, setExpanded] = useState(false);
+  const [keyText, setKeyText] = useState("");
+  const [keySaving, setKeySaving] = useState(false);
+  const [keySaved, setKeySaved] = useState(false);
+  const [envVarName, setEnvVarName] = useState(provider.api_key_env);
+  const [envVarSaving, setEnvVarSaving] = useState(false);
+  const [envVarSaved, setEnvVarSaved] = useState(false);
+  const [envVarError, setEnvVarError] = useState<string | null>(null);
 
   useEffect(() => {
-    setState((s) => ({ ...s, envVarName: provider.api_key_env }));
+    setEnvVarName(provider.api_key_env);
   }, [provider.api_key_env]);
 
-  const updateState = (patch: Partial<ProviderCardState>) =>
-    setState((s) => ({ ...s, ...patch }));
-
-  const handleSaveKey = useCallback(async () => {
-    if (!state.keyText.trim() || !keyStatus) return;
-    updateState({ saving: true, saved: false });
+  const handleSaveKey = async () => {
+    if (!keyText.trim() || !keyStatus) return;
+    setKeySaving(true);
+    setKeySaved(false);
     try {
-      await invoke("set_env_api_key", { key: state.keyText, envVarName: keyStatus.env_var });
-      updateState({ saving: false, saved: true, keyText: "" });
-      setTimeout(() => updateState({ saved: false }), 2000);
+      await invoke("set_env_api_key", { key: keyText, envVarName: keyStatus.env_var });
+      setKeySaving(false);
+      setKeySaved(true);
+      setKeyText("");
+      setTimeout(() => setKeySaved(false), 2000);
       onRefresh();
     } catch (e) {
-      updateState({ saving: false });
+      setKeySaving(false);
       console.error(e);
     }
-  }, [state.keyText, keyStatus, onRefresh]);
+  };
 
-  const handleSaveEnvVar = useCallback(async () => {
-    const trimmed = state.envVarName.trim();
+  const handleSaveEnvVar = async () => {
+    const trimmed = envVarName.trim();
     if (!trimmed) {
-      updateState({ envVarError: t("apiKeyPanel.envVarErrorEmpty") });
+      setEnvVarError(t("apiKeyPanel.envVarErrorEmpty"));
       return;
     }
     if (!/^[A-Z][A-Z0-9_]*$/.test(trimmed)) {
-      updateState({ envVarError: t("apiKeyPanel.envVarErrorFormat") });
+      setEnvVarError(t("apiKeyPanel.envVarErrorFormat"));
       return;
     }
-    updateState({ envVarSaving: true, envVarSaved: false, envVarError: null });
+    setEnvVarError(null);
+    setEnvVarSaving(true);
+    setEnvVarSaved(false);
     try {
       await invoke("update_provider_api_key_env", { providerId, apiKeyEnv: trimmed });
-      updateState({ envVarSaving: false, envVarSaved: true });
-      setTimeout(() => updateState({ envVarSaved: false }), 2000);
+      setEnvVarSaving(false);
+      setEnvVarSaved(true);
+      setTimeout(() => setEnvVarSaved(false), 2000);
       onRefresh();
     } catch (e) {
-      updateState({ envVarSaving: false, envVarError: String(e) });
+      setEnvVarSaving(false);
+      setEnvVarError(String(e));
     }
-  }, [providerId, state.envVarName, onRefresh, t]);
-
-  const cardStyle: React.CSSProperties = active
-    ? {
-        background: "#f0f7ff",
-        border: "2px solid #0078d4",
-        borderRadius: 8,
-        padding: "12px 14px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }
-    : {
-        background: "#ffffff",
-        border: "1px solid #d0d7de",
-        borderRadius: 8,
-        padding: "12px 14px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      };
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: 11,
-    fontWeight: 600,
-    color: "#1f2937",
-    minWidth: 90,
   };
 
-  const inputStyle: React.CSSProperties = {
-    flex: 1,
-    padding: "5px 8px",
-    fontSize: 12,
-    fontFamily: "var(--font-mono)",
-    background: "#ffffff",
-    color: "#1f2937",
-    border: state.envVarError
-      ? "1px solid var(--error)"
-      : "1px solid #d0d7de",
-    borderRadius: 4,
-    outline: "none",
-  };
+  const cell = (content: React.ReactNode, style?: React.CSSProperties) => (
+    <div style={{ ...COL_STYLE, ...style }}>{content}</div>
+  );
+
+  const btnSmall = (label: string, onClick: () => void, disabled?: boolean) => (
+    <button
+      className="btn btn-small"
+      onClick={onClick}
+      disabled={disabled}
+      style={{ fontSize: 11, padding: "2px 8px" }}
+    >
+      {label}
+    </button>
+  );
+
+  const btnPrimarySmall = (label: string, onClick: () => void, disabled?: boolean) => (
+    <button
+      className="btn btn-primary btn-small"
+      onClick={onClick}
+      disabled={disabled}
+      style={{ fontSize: 11, padding: "2px 8px" }}
+    >
+      {label}
+    </button>
+  );
+
+  const rowBg = active ? "#eef6ff" : "#ffffff";
+  const rowBorder = active ? "2px solid #e0edf9" : "1px solid #e5e7eb";
+  const leftBar = active ? "4px solid #0078d4" : "4px solid transparent";
 
   return (
-    <div style={cardStyle}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: "#1f2937" }}>
-            {provider.display_name}
-          </span>
-          {active && (
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      {/* Main row */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          background: rowBg,
+          borderTop: rowBorder,
+          borderBottom: rowBorder,
+          borderLeft: leftBar,
+          borderRight: rowBorder,
+          marginBottom: expanded ? 0 : 0,
+        }}
+      >
+        {/* Provider name */}
+        <div style={{ ...COL_STYLE, fontWeight: 700, minWidth: 130, fontSize: 13 }}>
+          {provider.display_name}
+        </div>
+
+        {/* Status badge */}
+        <div style={{ minWidth: 80 }}>
+          {active ? (
             <span
               style={{
                 fontSize: 10,
@@ -164,96 +148,157 @@ function ProviderCard({
             >
               {t("apiKeyPanel.badgeActive")}
             </span>
+          ) : (
+            <span style={{ fontSize: 11, color: "#6b7280" }}>Inactive</span>
           )}
         </div>
-        {!active && (
-          <button
-            className="btn btn-primary btn-small"
-            onClick={onActivate}
-            disabled={switching}
+
+        {/* Env var name */}
+        <div style={{ ...COL_STYLE, fontFamily: "var(--font-mono)", fontSize: 11, minWidth: 150, color: "#374151" }}>
+          {provider.api_key_env}
+        </div>
+
+        {/* Key status */}
+        <div style={{ minWidth: 70 }}>
+          {keyStatus === null ? (
+            <span style={{ fontSize: 11, color: "#6b7280" }}>...</span>
+          ) : keyStatus.set ? (
+            <span style={{ fontSize: 11, color: "#107c10", fontWeight: 600 }}>
+              {t("apiKeyPanel.set")}
+            </span>
+          ) : (
+            <span style={{ fontSize: 11, color: "var(--error)", fontWeight: 600 }}>
+              {t("apiKeyPanel.notSet")}
+            </span>
+          )}
+        </div>
+
+        {/* Vision capability */}
+        <div style={{ minWidth: 80 }}>
+          <span
+            style={{
+              fontSize: 10,
+              padding: "2px 8px",
+              borderRadius: 4,
+              fontWeight: 500,
+              background: provider.supports_vision ? "#e6f4ea" : "#f3f4f6",
+              color: provider.supports_vision ? "#137333" : "#6b7280",
+              border: provider.supports_vision ? "1px solid #b7dfc0" : "1px solid #d1d5db",
+            }}
           >
-            {switching ? "..." : t("apiKeyPanel.setActive")}
-          </button>
-        )}
+            {provider.supports_vision ? t("apiKeyPanel.capVision") : t("apiKeyPanel.noVision")}
+          </span>
+        </div>
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 6, padding: "4px 10px" }}>
+          {!active && btnPrimarySmall(t("apiKeyPanel.setActive"), onActivate, switching)}
+          {btnSmall(expanded ? t("apiKeyPanel.collapse") : t("apiKeyPanel.edit"), () => setExpanded(!expanded))}
+        </div>
       </div>
 
-      {/* Capabilities */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 11, color: "#6b7280", marginRight: 2 }}>Capabilities:</span>
-        <CapabilityBadge label={t("apiKeyPanel.capVision")} supported={provider.supports_vision} />
-        <CapabilityBadge label={t("apiKeyPanel.capVideo")} supported={provider.supports_video} />
-        <CapabilityBadge label={t("apiKeyPanel.capThinking")} supported={provider.supports_thinking} />
-        <CapabilityBadge label={t("apiKeyPanel.capCountTokens")} supported={provider.supports_count_tokens} />
-      </div>
-
-      {/* Divider */}
-      <div style={{ borderTop: "1px solid #e5e7eb" }} />
-
-      {/* Env var name */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={labelStyle}>{t("apiKeyPanel.envVarLabel")}</span>
-        <input
-          style={{ ...inputStyle, maxWidth: 280 }}
-          value={state.envVarName}
-          onChange={(e) => updateState({ envVarName: e.target.value.toUpperCase(), envVarError: null })}
-          placeholder="MOONSHOT_API_KEY"
-          spellCheck={false}
-        />
-        <button
-          className="btn btn-primary btn-small"
-          onClick={handleSaveEnvVar}
-          disabled={
-            state.envVarSaving ||
-            !state.envVarName.trim() ||
-            state.envVarName === provider.api_key_env
-          }
+      {/* Expandable edit area */}
+      {expanded && (
+        <div
+          style={{
+            background: "#fafafa",
+            borderLeft: leftBar,
+            borderRight: "1px solid #e5e7eb",
+            borderBottom: "1px solid #e5e7eb",
+            padding: "10px 16px 10px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
         >
-          {state.envVarSaving ? "..." : t("apiKeyPanel.envVarSave")}
-        </button>
-        {state.envVarSaved && <span className="saved-toast">{t("apiKeyPanel.envVarSaved")}</span>}
-      </div>
-      {state.envVarError && (
-        <span style={{ fontSize: 10, color: "var(--error)", marginLeft: 100 }}>
-          {state.envVarError}
-        </span>
+          {/* Env var name edit */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#1f2937", minWidth: 90 }}>
+              {t("apiKeyPanel.envVarLabel")}
+            </span>
+            <input
+              style={{
+                width: 260,
+                padding: "4px 8px",
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                background: "#fff",
+                color: "#1f2937",
+                border: envVarError ? "1px solid var(--error)" : "1px solid #d0d7de",
+                borderRadius: 4,
+                outline: "none",
+              }}
+              value={envVarName}
+              onChange={(e) => {
+                setEnvVarName(e.target.value.toUpperCase());
+                setEnvVarError(null);
+              }}
+              placeholder="MOONSHOT_API_KEY"
+              spellCheck={false}
+            />
+            <button
+              className="btn btn-primary btn-small"
+              onClick={handleSaveEnvVar}
+              disabled={envVarSaving || !envVarName.trim() || envVarName === provider.api_key_env}
+            >
+              {envVarSaving ? "..." : t("apiKeyPanel.envVarSave")}
+            </button>
+            {envVarSaved && <span className="saved-toast">{t("apiKeyPanel.envVarSaved")}</span>}
+            {envVarError && (
+              <span style={{ fontSize: 10, color: "var(--error)" }}>{envVarError}</span>
+            )}
+          </div>
+
+          {/* API key input */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#1f2937", minWidth: 90 }}>
+              {t("apiKeyPanel.header")}
+            </span>
+            <input
+              type="password"
+              style={{
+                width: 340,
+                padding: "4px 8px",
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                background: "#fff",
+                color: "#1f2937",
+                border: "1px solid #d0d7de",
+                borderRadius: 4,
+                outline: "none",
+              }}
+              value={keyText}
+              onChange={(e) => setKeyText(e.target.value)}
+              placeholder="sk-..."
+              spellCheck={false}
+            />
+            <button
+              className="btn btn-primary btn-small"
+              onClick={handleSaveKey}
+              disabled={keySaving || !keyText.trim()}
+            >
+              {keySaving ? "..." : t("apiKeyPanel.saveKey")}
+            </button>
+            {keySaved && <span className="saved-toast">{t("apiKeyPanel.saved")}</span>}
+          </div>
+
+          {/* Extra capabilities shown on expand */}
+          <div style={{ display: "flex", gap: 16, marginLeft: 100 }}>
+            <span style={{ fontSize: 10, color: provider.supports_video ? "#137333" : "#6b7280" }}>
+              {t("apiKeyPanel.capVideo")}: {provider.supports_video ? "Yes" : "No"}
+            </span>
+            <span style={{ fontSize: 10, color: provider.supports_thinking ? "#137333" : "#6b7280" }}>
+              {t("apiKeyPanel.capThinking")}: {provider.supports_thinking ? "Yes" : "No"}
+            </span>
+            <span style={{ fontSize: 10, color: provider.supports_count_tokens ? "#137333" : "#6b7280" }}>
+              {t("apiKeyPanel.capCountTokens")}: {provider.supports_count_tokens ? "Yes" : "No"}
+            </span>
+          </div>
+        </div>
       )}
-
-      {/* API key input */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={labelStyle}>{t("apiKeyPanel.header")}</span>
-        <input
-          className="api-key-input"
-          type="password"
-          value={state.keyText}
-          onChange={(e) => updateState({ keyText: e.target.value })}
-          placeholder="sk-..."
-          style={{ flex: 1, maxWidth: 390, fontSize: 12 }}
-        />
-        <button
-          className="btn btn-primary btn-small"
-          onClick={handleSaveKey}
-          disabled={state.saving || !state.keyText.trim()}
-        >
-          {state.saving ? "..." : t("apiKeyPanel.saveKey")}
-        </button>
-        {state.saved && <span className="saved-toast">{t("apiKeyPanel.saved")}</span>}
-      </div>
-
-      {/* API key status */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={labelStyle}>{t("apiKeyPanel.status")}</span>
-        {keyStatus === null ? (
-          <span style={{ fontSize: 11, color: "#6b7280" }}>...</span>
-        ) : keyStatus.set ? (
-          <span style={{ fontSize: 11, color: "#107c10", fontWeight: 600 }}>
-            {t("apiKeyPanel.set")} ({keyStatus.env_var})
-          </span>
-        ) : (
-          <span style={{ fontSize: 11, color: "var(--error)", fontWeight: 600 }}>
-            {t("apiKeyPanel.notSet")} ({keyStatus.env_var})
-          </span>
-        )}
-      </div>
     </div>
   );
 }
@@ -301,15 +346,16 @@ export default function ApiKeyPanel() {
 
   return (
     <>
-      <div className="claude-config-help" style={{ marginBottom: 12 }}>
+      {/* Help text */}
+      <div className="claude-config-help" style={{ marginBottom: 10 }}>
         <p>{t("apiKeyPanel.helpText")}</p>
       </div>
 
-      {/* Active provider info banner */}
+      {/* Active provider info + vision warning */}
       {activeProvider && (
         <div
           style={{
-            padding: "10px 14px",
+            padding: "8px 14px",
             background: activeProvider.supports_vision ? "#f0fdf4" : "#fefce8",
             border: activeProvider.supports_vision ? "1px solid #bbf7d0" : "1px solid #fde68a",
             borderRadius: 6,
@@ -320,16 +366,47 @@ export default function ApiKeyPanel() {
           }}
         >
           <strong>{t("apiKeyPanel.currentActive", { name: activeProvider.display_name })}</strong>
-          <br />
+          &ensp;
           {activeProvider.supports_vision
             ? t("apiKeyPanel.visionSupported")
             : t("apiKeyPanel.visionNotSupported")}
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {/* Column headers */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          padding: "4px 10px",
+          marginBottom: 4,
+        }}
+      >
+        <div style={{ ...COL_STYLE, fontWeight: 600, fontSize: 10, color: "#6b7280", minWidth: 130 }}>
+          Provider
+        </div>
+        <div style={{ minWidth: 80, fontSize: 10, fontWeight: 600, color: "#6b7280" }}>Status</div>
+        <div style={{ ...COL_STYLE, fontWeight: 600, fontSize: 10, color: "#6b7280", minWidth: 150 }}>
+          Env Var
+        </div>
+        <div style={{ minWidth: 70, fontSize: 10, fontWeight: 600, color: "#6b7280" }}>Key</div>
+        <div style={{ minWidth: 80, fontSize: 10, fontWeight: 600, color: "#6b7280" }}>Vision</div>
+        <div style={{ flex: 1 }} />
+        <div style={{ width: 160, fontSize: 10, fontWeight: 600, color: "#6b7280" }}>Actions</div>
+      </div>
+
+      {/* Provider rows */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          border: "1px solid #e5e7eb",
+          borderRadius: 6,
+          overflow: "hidden",
+        }}
+      >
         {providerEntries.map(([id, provider]) => (
-          <ProviderCard
+          <ProviderRow
             key={id}
             providerId={id}
             provider={provider}
