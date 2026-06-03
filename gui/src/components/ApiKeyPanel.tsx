@@ -237,10 +237,9 @@ export default function ApiKeyPanel() {
   const providerEntries = Object.entries(config.providers);
 
   return (
-    <>
-      <div className="claude-config-help" style={{ marginBottom: 10 }}>
-        <p>{t("apiKeyPanel.helpText")}</p>
-      </div>
+    <div className="settings-tile">
+      <h3>{t("apiKeyPanel.header")}</h3>
+      <p className="tile-desc">{t("apiKeyPanel.helpText")}</p>
 
       {/* Column headers */}
       <div
@@ -286,6 +285,6 @@ export default function ApiKeyPanel() {
           />
         ))}
       </div>
-    </>
+    </div>
   );
 }

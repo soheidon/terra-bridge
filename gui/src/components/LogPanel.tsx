@@ -15,6 +15,9 @@ export default function LogPanel() {
   const [logContent, setLogContent] = useState<LogContent | null>(null);
   const [logLoading, setLogLoading] = useState(false);
 
+  // Collapse toggle
+  const [collapsed, setCollapsed] = useState(true);
+
   // Load log list on mount
   useEffect(() => {
     loadLogList();
@@ -81,17 +84,30 @@ export default function LogPanel() {
     }
   };
 
+  // Remove Pro/Flash labels from log lines for cleaner display
+  const logLines = useMemo(() => {
+    if (!display?.content) return "";
+    return display.content
+      .replace(/\[Gateway Pro\]\s*/g, "")
+      .replace(/\[Gateway Flash\]\s*/g, "");
+  }, [display]);
+
   return (
     <div className="panel log-panel">
       <div className="panel-header">
-        <span>
+        <button
+          className="collapse-header"
+          onClick={() => setCollapsed(!collapsed)}
+          style={{ border: "none", background: "none", cursor: "pointer", padding: 0, fontSize: "inherit", fontWeight: 600, color: "inherit" }}
+        >
+          <span>{collapsed ? "▶" : "▼"}</span>
           {t("logPanel.header")}
           {display?.filename && !selectedLog && (
-            <span style={{ color: "var(--text-muted)", marginLeft: 8 }}>
+            <span style={{ color: "var(--text-muted)", marginLeft: 8, fontWeight: 400 }}>
               {display.filename}
             </span>
           )}
-        </span>
+        </button>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <select
             className="log-file-selector"
@@ -116,30 +132,34 @@ export default function LogPanel() {
           </button>
         </div>
       </div>
-      <div className="panel-content">
-        {(loading || logLoading) ? (
-          <div className="loading" />
-        ) : error ? (
-          <div className="error-text">{error}</div>
-        ) : display ? (
-          <>
-            <div className="pro-flash-summary">
-              <span className="pro">{t("logPanel.proCount", { count: proCount })}</span>
-              <span className="flash">{t("logPanel.flashCount", { count: flashCount })}</span>
-              <span style={{ color: "var(--text-muted)" }}>
-                {t("logPanel.lines", { count: display.line_count })}
-              </span>
-            </div>
-            <pre ref={scrollRef} className="log-content">
-              {display.content || (
-                <span className="empty-state">{t("logPanel.emptyLog")}</span>
-              )}
-            </pre>
-          </>
-        ) : (
-          <div className="empty-state">{t("logPanel.noLog")}</div>
-        )}
-      </div>
+
+      {/* Log body: collapsible */}
+      {!collapsed && (
+        <div className="panel-content">
+          {(loading || logLoading) ? (
+            <div className="loading" />
+          ) : error ? (
+            <div className="error-text">{error}</div>
+          ) : display ? (
+            <>
+              <div className="pro-flash-summary">
+                <span className="pro">{t("logPanel.proCount", { count: proCount })}</span>
+                <span className="flash">{t("logPanel.flashCount", { count: flashCount })}</span>
+                <span style={{ color: "var(--text-muted)" }}>
+                  {t("logPanel.lines", { count: display.line_count })}
+                </span>
+              </div>
+              <pre ref={scrollRef} className="log-content compact">
+                {logLines || (
+                  <span className="empty-state">{t("logPanel.emptyLog")}</span>
+                )}
+              </pre>
+            </>
+          ) : (
+            <div className="empty-state">{t("logPanel.noLog")}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

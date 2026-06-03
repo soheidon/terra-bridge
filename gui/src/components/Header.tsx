@@ -11,6 +11,8 @@ interface HeaderProps {
   onStart: () => void;
   onStop: () => void;
   onClearDiag: () => void;
+  inSettings: boolean;
+  onToggleSettings: () => void;
 }
 
 export default function Header({
@@ -23,6 +25,8 @@ export default function Header({
   onStart,
   onStop,
   onClearDiag,
+  inSettings,
+  onToggleSettings,
 }: HeaderProps) {
   const { t } = useTranslation();
   const { lang, setLang } = useContext(LanguageContext);
@@ -35,14 +39,10 @@ export default function Header({
 
   return (
     <header className="app-header">
-      <h1>{t("header.title")}</h1>
-      <span className={`status-badge status-${proxyStatus}`}>
-        {t(statusKey)}
-      </span>
       <div className="header-proxy-section">
         {managedRunning ? (
           <button
-            className="btn"
+            className="btn btn-large"
             onClick={onStop}
             disabled={proxyLoading}
           >
@@ -50,13 +50,16 @@ export default function Header({
           </button>
         ) : (
           <button
-            className="btn btn-primary"
+            className="btn btn-primary btn-large"
             onClick={onStart}
             disabled={proxyLoading}
           >
             {t("header.startGateway")}
           </button>
         )}
+        <span className={`status-badge status-${proxyStatus}`}>
+          {t(statusKey)}
+        </span>
         {proxyError && (
           <span className="proxy-error" title={proxyError}>
             {proxyError.length > 120 ? proxyError.slice(0, 120) + "…" : proxyError}
@@ -72,22 +75,30 @@ export default function Header({
           <pre className="proxy-diag-pre">{proxyDiag}</pre>
         </div>
       )}
-      <div className="lang-switcher">
+      <div className="header-right">
         <button
-          className={`lang-option ${lang === "ja" ? "lang-active" : ""}`}
-          onClick={() => setLang("ja")}
-          aria-label="Switch to Japanese"
+          className={`btn btn-small ${inSettings ? "btn-active" : ""}`}
+          onClick={onToggleSettings}
         >
-          日本語
+          {inSettings ? "✕" : "⚙"} {t("header.settings")}
         </button>
-        <span className="lang-separator">|</span>
-        <button
-          className={`lang-option ${lang === "en" ? "lang-active" : ""}`}
-          onClick={() => setLang("en")}
-          aria-label="Switch to English"
-        >
-          English
-        </button>
+        <div className="lang-switcher">
+          <button
+            className={`lang-option ${lang === "ja" ? "lang-active" : ""}`}
+            onClick={() => setLang("ja")}
+            aria-label="Switch to Japanese"
+          >
+            日本語
+          </button>
+          <span className="lang-separator">|</span>
+          <button
+            className={`lang-option ${lang === "en" ? "lang-active" : ""}`}
+            onClick={() => setLang("en")}
+            aria-label="Switch to English"
+          >
+            English
+          </button>
+        </div>
       </div>
     </header>
   );

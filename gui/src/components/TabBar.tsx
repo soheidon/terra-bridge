@@ -1,26 +1,32 @@
 import { useTranslation } from "../i18n";
 import type { TranslationKey } from "../i18n/translations";
 
-export type TabId = "dashboard" | "gateway" | "claude" | "apikey";
+export type SettingsTabId = "gateway" | "claude" | "apikey";
 
 interface TabBarProps {
-  activeTab: TabId;
-  onTabChange: (tab: TabId) => void;
+  activeTab: SettingsTabId;
+  onTabChange: (tab: SettingsTabId) => void;
+  onBack: () => void;
+  visible: boolean;
 }
 
-const TABS: { id: TabId; labelKey: TranslationKey }[] = [
-  { id: "dashboard", labelKey: "tab.dashboard" },
+const SETTINGS_TABS: { id: SettingsTabId; labelKey: TranslationKey }[] = [
   { id: "gateway", labelKey: "tab.advanced" },
   { id: "claude", labelKey: "tab.claudeSetup" },
   { id: "apikey", labelKey: "tab.apiKey" },
 ];
 
-export default function TabBar({ activeTab, onTabChange }: TabBarProps) {
+export default function TabBar({ activeTab, onTabChange, onBack, visible }: TabBarProps) {
   const { t } = useTranslation();
+
+  if (!visible) return null;
 
   return (
     <div className="tab-bar">
-      {TABS.map((tab) => (
+      <button className="tab-item tab-back" onClick={onBack}>
+        ← {t("settings.back")}
+      </button>
+      {SETTINGS_TABS.map((tab) => (
         <button
           key={tab.id}
           className={`tab-item ${activeTab === tab.id ? "tab-active" : ""}`}

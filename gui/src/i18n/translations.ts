@@ -8,6 +8,7 @@ export const translations = {
     "header.gatewayUnreachable": "Gateway: Disconnected",
     "header.startGateway": "Start Gateway",
     "header.stopGateway": "Stop Gateway",
+    "header.settings": "Settings",
     "status.unknown": "Unknown",
 
     // Tab bar
@@ -15,6 +16,9 @@ export const translations = {
     "tab.advanced": "Advanced",
     "tab.claudeSetup": "Claude Desktop Setup",
     "tab.apiKey": "API Key",
+
+    // Settings
+    "settings.back": "Back",
 
     // StatusPanel
     "statusPanel.header": "Status",
@@ -39,6 +43,23 @@ export const translations = {
     "statusPanel.colVision": "Vision/Video",
     "statusPanel.colRole": "Role",
     "statusPanel.activeProvider": "Active provider:",
+    "statusPanel.selectProvider": "Select LLM Provider",
+    "statusPanel.providerHint": "Gateway Pro / Gateway Flash requests from Claude Desktop are routed to your chosen provider below.",
+    "statusPanel.restarting": "Provider changed. Restarting gateway...",
+    "statusPanel.restarted": "Provider changed. Gateway restarted.",
+    "statusPanel.savedNextStart": "Saved. Will take effect on next gateway start.",
+    "statusPanel.tileSelectProvider": "Select LLM Provider",
+    "statusPanel.tileDeepseekDesc": "Text and coding",
+    "statusPanel.tileMinimaxDesc": "Image input capable",
+    "statusPanel.tileKimiDesc": "Image and video input capable",
+    "statusPanel.tileActive": "ACTIVE",
+    "statusPanel.tilePro": "Gateway Pro →",
+    "statusPanel.tileFlash": "Gateway Flash →",
+    "statusPanel.tileCapVision": "Vision: {val}",
+    "statusPanel.tileCapVideo": "Video: {val}",
+    "statusPanel.tileCapYes": "Yes",
+    "statusPanel.tileCapNo": "No",
+    "statusPanel.tileHint": "Claude Desktop shows Gateway Pro / Gateway Flash. The tiles below choose which actual LLM provider handles those requests.",
     "statusPanel.thinkingDefault": "default",
     "statusPanel.thinkingDisabled": "disabled",
     "statusPanel.yes": "yes",
@@ -61,6 +82,7 @@ export const translations = {
     "claudeConfig.copy": "Copy to Clipboard",
     "claudeConfig.copied": "Copied!",
     "claudeConfig.helpText": "Select the models you want to use in Claude Desktop, then copy the generated JSON into your Claude Desktop settings file.",
+    "claudeConfig.dashboardNote": "Claude Desktop always uses Gateway Pro / Gateway Flash. To switch the actual LLM provider (DeepSeek / MiniMax / Kimi), go to the Dashboard tab.",
     "claudeConfig.openFolder": "Open Folder",
     "claudeConfig.openFile": "Open File",
     "claudeConfig.browseManually": "Browse manually",
@@ -127,6 +149,7 @@ export const translations = {
     "header.gatewayUnreachable": "ゲートウェイ: 未接続",
     "header.startGateway": "ゲートウェイ起動",
     "header.stopGateway": "ゲートウェイ停止",
+    "header.settings": "設定",
     "status.unknown": "不明",
 
     // Tab bar
@@ -134,6 +157,9 @@ export const translations = {
     "tab.advanced": "詳細設定",
     "tab.claudeSetup": "Claude Desktop 設定",
     "tab.apiKey": "APIキー",
+
+    // Settings
+    "settings.back": "戻る",
 
     // StatusPanel
     "statusPanel.header": "ステータス",
@@ -158,6 +184,23 @@ export const translations = {
     "statusPanel.colVision": "画像/動画",
     "statusPanel.colRole": "役割",
     "statusPanel.activeProvider": "アクティブプロバイダ:",
+    "statusPanel.selectProvider": "使用するLLMプロバイダ",
+    "statusPanel.providerHint": "Claude Desktop から送られる Gateway Pro / Gateway Flash を、ここで選択したLLMプロバイダの実モデルへ変換します。",
+    "statusPanel.restarting": "プロバイダを変更しました。ゲートウェイを再起動しています...",
+    "statusPanel.restarted": "プロバイダを変更し、ゲートウェイを再起動しました。",
+    "statusPanel.savedNextStart": "選択を保存しました。次回起動時から反映されます。",
+    "statusPanel.tileSelectProvider": "使用するLLMプロバイダ",
+    "statusPanel.tileDeepseekDesc": "テキスト・コーディング向け",
+    "statusPanel.tileMinimaxDesc": "画像入力対応",
+    "statusPanel.tileKimiDesc": "画像・動画入力対応",
+    "statusPanel.tileActive": "選択中",
+    "statusPanel.tilePro": "Gateway Pro →",
+    "statusPanel.tileFlash": "Gateway Flash →",
+    "statusPanel.tileCapVision": "画像: {val}",
+    "statusPanel.tileCapVideo": "動画: {val}",
+    "statusPanel.tileCapYes": "対応",
+    "statusPanel.tileCapNo": "非対応",
+    "statusPanel.tileHint": "Claude Desktop には Gateway Pro / Gateway Flash の2つのモデルが表示されます。ここで選択したLLMプロバイダに応じて、ゲートウェイが実際の上流モデルへ変換します。",
     "statusPanel.thinkingDefault": "default",
     "statusPanel.thinkingDisabled": "disabled",
     "statusPanel.yes": "yes",
@@ -180,6 +223,7 @@ export const translations = {
     "claudeConfig.copy": "クリップボードにコピー",
     "claudeConfig.copied": "コピーしました",
     "claudeConfig.helpText": "Claude Desktop で使用したいモデルを選択し、生成されたJSONを Claude Desktop の設定ファイルに貼り付けてください。",
+    "claudeConfig.dashboardNote": "Claude Desktop には常に Gateway Pro / Gateway Flash の2つのモデルを登録します。実際に使用するLLMプロバイダ（DeepSeek / MiniMax / Kimi）はダッシュボードタブで選択します。",
     "claudeConfig.openFolder": "フォルダを開く",
     "claudeConfig.openFile": "ファイルを開く",
     "claudeConfig.browseManually": "手動で探す",

@@ -7,9 +7,15 @@ interface StatusPanelProps {
   health: GatewayStatus | null;
   healthError: string | null;
   healthLoading: boolean;
+  refreshKey?: number;
 }
 
-export default function StatusPanel({ health, healthError, healthLoading }: StatusPanelProps) {
+const SHELL_MODELS = [
+  { name: "claude-sonnet-4-6", role: "Gateway Pro" },
+  { name: "claude-haiku-4-5",  role: "Gateway Flash" },
+];
+
+export default function StatusPanel({ health, healthError, healthLoading, refreshKey }: StatusPanelProps) {
   const { t } = useTranslation();
   const [allKeyStatus, setAllKeyStatus] = useState<AllApiKeyStatus | null>(null);
   const [config, setConfig] = useState<GatewayConfig | null>(null);
@@ -25,23 +31,20 @@ export default function StatusPanel({ health, healthError, healthLoading }: Stat
 
   useEffect(() => {
     refresh();
-  }, [refresh]);
+  }, [refresh, refreshKey]);
 
-  // Build routing table: only the 2 Anthropic official shells for the active provider
-  const SHELL_MODELS = [
-    { name: "claude-sonnet-4-6", role: "Gateway Pro" },
-    { name: "claude-haiku-4-5",  role: "Gateway Flash" },
-  ];
+  const activeProviderId = config?.active_provider ?? "deepseek";
+  const activeProvider = config?.providers[activeProviderId];
+
+  // Build routing table rows
   interface RoutedModelRow {
     gateway: string;
     upstream: string;
     role: string;
-    thinking: string;
     visionVideo: boolean;
+    thinking: string;
   }
   const routedModels: RoutedModelRow[] = [];
-  const activeProviderId = config?.active_provider ?? "deepseek";
-  const activeProvider = config?.providers[activeProviderId];
   if (activeProvider?.models) {
     for (const shell of SHELL_MODELS) {
       const entry = activeProvider.models[shell.name];
@@ -52,8 +55,8 @@ export default function StatusPanel({ health, healthError, healthLoading }: Stat
           gateway: shell.name,
           upstream: entry.upstream_model,
           role: shell.role,
-          thinking,
           visionVideo,
+          thinking,
         });
       }
     }
@@ -65,6 +68,7 @@ export default function StatusPanel({ health, healthError, healthLoading }: Stat
         <span>{t("statusPanel.header")}</span>
       </div>
       <div className="panel-content">
+        {/* ---- Status cards ---- */}
         <div className="status-grid">
           {/* Port 4000 card */}
           <div className="status-card">
@@ -118,13 +122,12 @@ export default function StatusPanel({ health, healthError, healthLoading }: Stat
           </div>
         </div>
 
-        {/* Routing table: active provider's shell → upstream mapping */}
+        {/* ---- Routing table ---- */}
         {routedModels.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
               {t("statusPanel.availableModels")}
               {" — "}
-              {t("statusPanel.activeProvider")}{" "}
               {activeProvider?.display_name ?? activeProviderId}
             </div>
             <div style={{ overflowX: "auto" }}>
@@ -134,24 +137,24 @@ export default function StatusPanel({ health, healthError, healthLoading }: Stat
                     <th>{t("statusPanel.colGateway")}</th>
                     <th>{t("statusPanel.colUpstream")}</th>
                     <th>{t("statusPanel.colRole")}</th>
-                    <th>{t("statusPanel.colThinking")}</th>
                     <th>{t("statusPanel.colVision")}</th>
+                    <th>{t("statusPanel.colThinking")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {routedModels.map(({ gateway, upstream, role, thinking, visionVideo }) => (
+                  {routedModels.map(({ gateway, upstream, role, visionVideo, thinking }) => (
                     <tr key={gateway}>
                       <td className="mono">{gateway}</td>
                       <td className="mono" style={{ color: "var(--text-muted)" }}>{upstream}</td>
                       <td style={{ fontWeight: 600 }}>{role}</td>
                       <td>
-                        <span className={`badge ${thinking === "disabled" ? "badge-blue" : "badge-gray"}`}>
-                          {thinking === "disabled" ? t("statusPanel.thinkingDisabled") : t("statusPanel.thinkingDefault")}
+                        <span className={`badge ${visionVideo ? "badge-green" : "badge-gray"}`}>
+                          {visionVideo ? t("statusPanel.yes") : t("statusPanel.no")}
                         </span>
                       </td>
                       <td>
-                        <span className={`badge ${visionVideo ? "badge-green" : "badge-gray"}`}>
-                          {visionVideo ? t("statusPanel.yes") : t("statusPanel.no")}
+                        <span className={`badge ${thinking === "disabled" ? "badge-blue" : "badge-gray"}`}>
+                          {thinking === "disabled" ? t("statusPanel.thinkingDisabled") : t("statusPanel.thinkingDefault")}
                         </span>
                       </td>
                     </tr>
