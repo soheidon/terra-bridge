@@ -11,6 +11,14 @@ export interface PortProcess {
 }
 
 // ---- Config ----
+export interface ModelEntry {
+  upstream_model: string;
+  thinking?: string;
+  supports_vision?: boolean;
+  supports_video?: boolean;
+  visible?: boolean;
+}
+
 export interface ProviderConfig {
   display_name: string;
   upstream_url: string;
@@ -23,6 +31,7 @@ export interface ProviderConfig {
   supports_thinking: boolean;
   model_map: Record<string, string>;
   visible_models: string[];
+  models?: Record<string, ModelEntry>;
 }
 
 export interface ServerConfig {

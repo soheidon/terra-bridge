@@ -395,6 +395,21 @@ fn get_port_4000_process() -> Result<PortProcessInfo, String> {
 // Command 4: Read config
 // ---------------------------------------------------------------------------
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ModelEntry {
+    pub upstream_model: String,
+    #[serde(default)]
+    pub thinking: Option<String>,
+    #[serde(default)]
+    pub supports_vision: Option<bool>,
+    #[serde(default)]
+    pub supports_video: Option<bool>,
+    #[serde(default = "default_visible")]
+    pub visible: bool,
+}
+
+fn default_visible() -> bool { true }
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ProviderConfig {
     pub display_name: String,
@@ -408,6 +423,8 @@ pub struct ProviderConfig {
     pub supports_thinking: bool,
     pub model_map: std::collections::HashMap<String, String>,
     pub visible_models: Vec<String>,
+    #[serde(default)]
+    pub models: Option<std::collections::HashMap<String, ModelEntry>>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -903,8 +920,8 @@ fn start_proxy(state: tauri::State<'_, ProxyState>) -> Result<StartProxyResult, 
                 c.providers.len()
             ));
             for m in &c.all_models {
-                if let Some((pid, up)) = c.model_route.get(m) {
-                    diag.push(format!("  {} -> provider={} upstream={}", m, pid, up));
+                if let Some(entry) = c.model_route.get(m) {
+                    diag.push(format!("  {} -> provider={} upstream={}", m, entry.provider_id, entry.upstream_model));
                 }
             }
             c

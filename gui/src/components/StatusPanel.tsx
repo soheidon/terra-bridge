@@ -27,14 +27,53 @@ export default function StatusPanel({ health, healthError, healthLoading }: Stat
     refresh();
   }, [refresh]);
 
-  // Collect all visible models across all providers
-  const allModels: string[] = [];
+  // Build visible model routing table with full columns
+  interface RoutedModelRow {
+    providerId: string;
+    displayName: string;
+    gateway: string;
+    upstream: string;
+    thinking: string;       // "default" | "disabled"
+    visionVideo: boolean;
+  }
+  const routedModels: RoutedModelRow[] = [];
   if (config) {
-    for (const provider of Object.values(config.providers)) {
-      for (const gm of Object.keys(provider.model_map)) {
-        if (!allModels.includes(gm)) allModels.push(gm);
+    for (const [providerId, provider] of Object.entries(config.providers)) {
+      if (provider.models) {
+        for (const [gm, entry] of Object.entries(provider.models)) {
+          if (entry.visible !== false) {
+            const visionVideo = entry.supports_vision ?? provider.supports_vision;
+            const thinking = entry.thinking === "disabled" ? "disabled" : "default";
+            routedModels.push({
+              providerId,
+              displayName: provider.display_name,
+              gateway: gm,
+              upstream: entry.upstream_model,
+              thinking,
+              visionVideo,
+            });
+          }
+        }
+      } else {
+        // Fallback: only show visible_models, look up upstream in model_map
+        for (const gm of provider.visible_models) {
+          const upstream = provider.model_map[gm];
+          if (upstream) {
+            routedModels.push({
+              providerId,
+              displayName: provider.display_name,
+              gateway: gm,
+              upstream,
+              thinking: "default",
+              visionVideo: provider.supports_vision,
+            });
+          }
+        }
       }
     }
+    routedModels.sort((a, b) =>
+      a.displayName.localeCompare(b.displayName) || a.gateway.localeCompare(b.gateway)
+    );
   }
 
   return (
@@ -96,29 +135,43 @@ export default function StatusPanel({ health, healthError, healthLoading }: Stat
           </div>
         </div>
 
-        {/* Available models */}
-        {allModels.length > 0 && (
+        {/* Available models table */}
+        {routedModels.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
               {t("statusPanel.availableModels")}
             </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {allModels.map((m) => (
-                <code
-                  key={m}
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 11,
-                    background: "var(--bg-card)",
-                    padding: "2px 8px",
-                    borderRadius: 4,
-                    border: "1px solid var(--border)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  {m}
-                </code>
-              ))}
+            <div style={{ overflowX: "auto" }}>
+              <table className="model-routing-table">
+                <thead>
+                  <tr>
+                    <th>{t("statusPanel.colProvider")}</th>
+                    <th>{t("statusPanel.colGateway")}</th>
+                    <th>{t("statusPanel.colUpstream")}</th>
+                    <th>{t("statusPanel.colThinking")}</th>
+                    <th>{t("statusPanel.colVision")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {routedModels.map(({ providerId, displayName, gateway, upstream, thinking, visionVideo }) => (
+                    <tr key={`${providerId}:${gateway}`}>
+                      <td>{displayName}</td>
+                      <td className="mono">{gateway}</td>
+                      <td className="mono" style={{ color: "var(--text-muted)" }}>{upstream}</td>
+                      <td>
+                        <span className={`badge ${thinking === "disabled" ? "badge-blue" : "badge-gray"}`}>
+                          {thinking === "disabled" ? t("statusPanel.thinkingDisabled") : t("statusPanel.thinkingDefault")}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`badge ${visionVideo ? "badge-green" : "badge-gray"}`}>
+                          {visionVideo ? t("statusPanel.yes") : t("statusPanel.no")}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
