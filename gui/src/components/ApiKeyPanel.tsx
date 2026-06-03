@@ -113,7 +113,7 @@ function ProviderRow({
 
         <div style={{ flex: 1 }} />
 
-        <div style={{ padding: "4px 10px" }}>
+        <div style={{ width: 80, padding: "2px 10px" }}>
           <button
             className="btn btn-small"
             onClick={() => setExpanded(!expanded)}
@@ -245,8 +245,8 @@ export default function ApiKeyPanel() {
         style={{
           display: "flex",
           alignItems: "center",
-          padding: "4px 10px",
-          marginBottom: 4,
+          padding: "1px 10px",
+          marginBottom: 2,
         }}
       >
         <div style={{ ...COL_STYLE, fontWeight: 600, fontSize: 10, color: "#6b7280", minWidth: 140 }}>
