@@ -113,9 +113,9 @@
         "claude-opus-4-5": "MiniMax-M3",
         "claude-opus-4": "MiniMax-M3",
         "claude-opus": "MiniMax-M3",
-        "claude-haiku-4-5-20251001": "MiniMax-M3",
-        "claude-haiku-4-5": "MiniMax-M3",
-        "claude-haiku": "MiniMax-M3",
+        "claude-haiku-4-5-20251001": "MiniMax-M2.7-highspeed",
+        "claude-haiku-4-5": "MiniMax-M2.7-highspeed",
+        "claude-haiku": "MiniMax-M2.7-highspeed",
         "MiniMax-M3": "MiniMax-M3"
       },
       "visible_models": [
@@ -186,22 +186,22 @@
           "visible": false
         },
         "claude-haiku-4-5-20251001": {
-          "upstream_model": "MiniMax-M3",
-          "supports_vision": true,
-          "supports_video": true,
+          "upstream_model": "MiniMax-M2.7-highspeed",
+          "supports_vision": false,
+          "supports_video": false,
           "visible": false
         },
         "claude-haiku-4-5": {
-          "upstream_model": "MiniMax-M3",
+          "upstream_model": "MiniMax-M2.7-highspeed",
           "thinking": "default",
-          "supports_vision": true,
-          "supports_video": true,
+          "supports_vision": false,
+          "supports_video": false,
           "visible": true
         },
         "claude-haiku": {
-          "upstream_model": "MiniMax-M3",
-          "supports_vision": true,
-          "supports_video": true,
+          "upstream_model": "MiniMax-M2.7-highspeed",
+          "supports_vision": false,
+          "supports_video": false,
           "visible": false
         },
         "MiniMax-M3": {
