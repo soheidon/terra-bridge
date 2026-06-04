@@ -1,7 +1,7 @@
 {
-  "productName": "Provider Gateway Manager",
+  "productName": "Anthropic Proxy Gateway",
   "version": "0.6.0",
-  "identifier": "jp.soheiide.provider-gateway-manager",
+  "identifier": "jp.soheiide.anthropic-proxy-gateway",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -41,7 +41,7 @@
   "app": {
     "windows": [
       {
-        "title": "Provider Gateway Manager",
+        "title": "Anthropic Proxy Gateway",
         "width": 1100,
         "height": 680,
         "minWidth": 900,

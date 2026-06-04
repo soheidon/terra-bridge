@@ -1,10 +1,10 @@
 [package]
-name = "provider-gateway-manager"
+name = "anthropic-proxy-gateway"
 version = "0.6.0"
 edition = "2021"
 
 [lib]
-name = "provider_gateway_manager_lib"
+name = "anthropic_proxy_gateway_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

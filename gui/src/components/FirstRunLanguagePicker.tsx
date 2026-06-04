@@ -37,7 +37,7 @@ export default function FirstRunLanguagePicker({ onDone }: FirstRunLanguagePicke
         marginBottom: 8,
         textAlign: "center",
       }}>
-        Provider Gateway Manager
+        Anthropic Proxy Gateway
       </h1>
       <p style={{
         fontSize: 14,

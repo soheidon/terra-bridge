@@ -2,7 +2,7 @@ export const nativeName = "English";
 
 export const translations = {
   // Header
-  "header.title": "Provider Gateway Manager",
+  "header.title": "Anthropic Proxy Gateway",
   "header.gatewayRunning": "Gateway: Running",
   "header.gatewayStopped": "Gateway: Stopped",
   "header.gatewayDetected": "Gateway: Detected",
