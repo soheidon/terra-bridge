@@ -42,6 +42,16 @@ pub struct ModelRouteEntry {
     pub thinking: ThinkingOverride,
     pub supports_vision: bool,
     pub supports_video: bool,
+    /// If true, always inject `thinking: { type: "enabled" }`
+    pub force_thinking: bool,
+    /// Can receive image blocks with source.type = "url"
+    pub supports_image_url: bool,
+    /// Can receive image blocks with source.type = "base64"
+    pub supports_image_base64: bool,
+    /// Can receive video blocks with source.type = "url"
+    pub supports_video_url: bool,
+    /// Can receive video blocks with source.type = "base64"
+    pub supports_video_base64: bool,
 }
 
 #[derive(Clone)]
@@ -97,6 +107,12 @@ pub fn resolve_proxy_config(cfg: &GatewayConfigResponse) -> Result<ProxyConfig, 
                 };
                 let supports_vision = entry.supports_vision.unwrap_or(p.supports_vision);
                 let supports_video = entry.supports_video.unwrap_or(p.supports_video);
+                let force_thinking = entry.force_thinking.unwrap_or(false);
+                // Granular capabilities: fall back to supports_vision/supports_video if not specified
+                let supports_image_url = entry.supports_image_url.unwrap_or(supports_vision);
+                let supports_image_base64 = entry.supports_image_base64.unwrap_or(supports_vision);
+                let supports_video_url = entry.supports_video_url.unwrap_or(supports_video);
+                let supports_video_base64 = entry.supports_video_base64.unwrap_or(supports_video);
 
                 // Active provider wins on model name collision; first non-active provider wins otherwise
                 if model_route.contains_key(gateway_model) && !is_active {
@@ -110,6 +126,11 @@ pub fn resolve_proxy_config(cfg: &GatewayConfigResponse) -> Result<ProxyConfig, 
                         thinking,
                         supports_vision,
                         supports_video,
+                        force_thinking,
+                        supports_image_url,
+                        supports_image_base64,
+                        supports_video_url,
+                        supports_video_base64,
                     },
                 );
                 if entry.visible && !all_models.contains(gateway_model) {
@@ -136,6 +157,11 @@ pub fn resolve_proxy_config(cfg: &GatewayConfigResponse) -> Result<ProxyConfig, 
                         thinking: ThinkingOverride::Default,
                         supports_vision: p.supports_vision,
                         supports_video: p.supports_video,
+                        force_thinking: false,
+                        supports_image_url: p.supports_vision,
+                        supports_image_base64: p.supports_vision,
+                        supports_video_url: p.supports_video,
+                        supports_video_base64: p.supports_video,
                     },
                 );
                 if visible_set.contains(gateway_model) && !all_models.contains(gateway_model) {
@@ -183,6 +209,22 @@ pub fn resolve_proxy_config(cfg: &GatewayConfigResponse) -> Result<ProxyConfig, 
         .clone()
         .or_else(|| cfg.providers.keys().next().cloned())
         .unwrap_or_default();
+
+    // Debug: log each model's resolved capability set
+    for (gw_model, entry) in &model_route {
+        tracing::info!(
+            "model route: {} -> {} | provider={} | img_url={} img_b64={} vid_url={} vid_b64={} force_thinking={} thinking={:?}",
+            gw_model,
+            entry.upstream_model,
+            entry.provider_id,
+            entry.supports_image_url,
+            entry.supports_image_base64,
+            entry.supports_video_url,
+            entry.supports_video_base64,
+            entry.force_thinking,
+            entry.thinking,
+        );
+    }
 
     Ok(ProxyConfig {
         model_route,
@@ -298,20 +340,83 @@ fn detect_media_types(messages: &[Value]) -> (bool, bool) {
 }
 
 // ---------------------------------------------------------------------------
-// Image sanitization for non-vision models
+// Media sanitization with granular source-type awareness
 // ---------------------------------------------------------------------------
 
-/// Content types recognized as image blocks (will be sanitized for non-vision models).
+/// Content types recognized as image blocks.
 const IMAGE_BLOCK_TYPES: &[&str] = &["image", "input_image", "image_url"];
 
 /// Placeholder text inserted when an image block is replaced.
-const IMAGE_PLACEHOLDER: &str = "[Image omitted: the selected backend model does not support image input. If the image is needed, switch to a vision-capable model.]";
+const IMAGE_PLACEHOLDER: &str = "[Image omitted: the selected backend model does not support this image format. If the image is needed, switch to a compatible model.]";
 
 fn is_image_block(block: &Value) -> bool {
     block.get("type")
         .and_then(|v| v.as_str())
         .map(|t| IMAGE_BLOCK_TYPES.contains(&t))
         .unwrap_or(false)
+}
+
+/// Classify an image block's source type: "url" or "base64".
+/// - Anthropic format: type="image" or "input_image" with source.type
+/// - OpenAI-compatible: type="image_url" (always URL)
+fn classify_image_source(block: &Value) -> Option<&str> {
+    let block_type = block.get("type").and_then(|v| v.as_str())?;
+    match block_type {
+        "image_url" => Some("url"),
+        "image" | "input_image" => block
+            .get("source")
+            .and_then(|s| s.get("type"))
+            .and_then(|v| v.as_str()),
+        _ => None,
+    }
+}
+
+/// Classify a video block's source type: "url" or "base64".
+fn classify_video_source(block: &Value) -> Option<&str> {
+    let block_type = block.get("type").and_then(|v| v.as_str())?;
+    if block_type != "video" {
+        return None;
+    }
+    block
+        .get("source")
+        .and_then(|s| s.get("type"))
+        .and_then(|v| v.as_str())
+}
+
+/// Recursively check if any unsupported image or video blocks exist.
+fn has_unsupported_media(content: &Value, entry: &ModelRouteEntry) -> bool {
+    match content {
+        Value::Array(arr) => {
+            for item in arr {
+                if let Some(source_type) = classify_image_source(item) {
+                    let supported = match source_type {
+                        "url" => entry.supports_image_url,
+                        "base64" => entry.supports_image_base64,
+                        _ => false,
+                    };
+                    if !supported {
+                        return true;
+                    }
+                } else if let Some(source_type) = classify_video_source(item) {
+                    let supported = match source_type {
+                        "url" => entry.supports_video_url,
+                        "base64" => entry.supports_video_base64,
+                        _ => false,
+                    };
+                    if !supported {
+                        return true;
+                    }
+                }
+                if let Some(inner) = item.get("content") {
+                    if has_unsupported_media(inner, entry) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        _ => false,
+    }
 }
 
 /// Recursively count image blocks in content (handles tool_result.content nesting).
@@ -344,25 +449,49 @@ fn count_image_blocks(messages: &[Value]) -> usize {
     total
 }
 
-/// Recursively sanitize image blocks in place.
-/// - "replace": image block → placeholder text
-/// - "drop": remove image block; if content becomes empty, insert placeholder
-fn sanitize_content_blocks(content: &mut Value, policy: &str) {
+/// Recursively sanitize unsupported media blocks in place.
+/// Returns the count of sanitized blocks.
+fn sanitize_content_blocks_granular(content: &mut Value, policy: &str, entry: &ModelRouteEntry) -> usize {
+    let mut count = 0;
     if let Value::Array(arr) = content {
         let mut i = 0;
         while i < arr.len() {
-            if is_image_block(&arr[i]) {
-                if policy == "replace" {
-                    arr[i] = json!({"type": "text", "text": IMAGE_PLACEHOLDER});
-                    i += 1;
+            let block = &arr[i];
+            if let Some(source_type) = classify_image_source(block) {
+                let supported = match source_type {
+                    "url" => entry.supports_image_url,
+                    "base64" => entry.supports_image_base64,
+                    _ => false,
+                };
+                if !supported {
+                    count += 1;
+                    if policy == "replace" {
+                        arr[i] = json!({"type": "text", "text": IMAGE_PLACEHOLDER});
+                        i += 1;
+                    } else {
+                        arr.remove(i);
+                        // Don't increment i — next element shifts into position
+                    }
                 } else {
-                    // "drop"
+                    i += 1;
+                }
+            } else if let Some(source_type) = classify_video_source(block) {
+                let supported = match source_type {
+                    "url" => entry.supports_video_url,
+                    "base64" => entry.supports_video_base64,
+                    _ => false,
+                };
+                if !supported {
+                    count += 1;
+                    // Video: always drop (placeholder text doesn't make sense for video)
                     arr.remove(i);
-                    // Don't increment i — next element shifts into this position
+                    // Don't increment i
+                } else {
+                    i += 1;
                 }
             } else {
                 if let Some(inner) = arr[i].get_mut("content") {
-                    sanitize_content_blocks(inner, policy);
+                    count += sanitize_content_blocks_granular(inner, policy, entry);
                 }
                 i += 1;
             }
@@ -372,17 +501,20 @@ fn sanitize_content_blocks(content: &mut Value, policy: &str) {
             arr.push(json!({"type": "text", "text": IMAGE_PLACEHOLDER}));
         }
     }
+    count
 }
 
-/// Sanitize image blocks in the request body for non-vision models.
+/// Sanitize image/video blocks in the request body based on granular capabilities.
 /// Returns (sanitized, image_block_count).
-/// If policy is "reject" and images exist, returns (false, count) to signal rejection.
 fn sanitize_body_images(
     body: &mut Value,
     entry: &ModelRouteEntry,
     policy: &str,
 ) -> (bool, usize) {
-    if entry.supports_vision {
+    // If model supports ALL image and video source types, skip entirely
+    if entry.supports_image_url && entry.supports_image_base64
+        && entry.supports_video_url && entry.supports_video_base64
+    {
         return (false, 0);
     }
 
@@ -397,16 +529,24 @@ fn sanitize_body_images(
     }
 
     if policy == "reject" {
-        return (false, count); // Caller should hard-reject
+        for msg in messages.iter() {
+            if let Some(content) = msg.get("content") {
+                if has_unsupported_media(content, entry) {
+                    return (false, count); // Caller should reject
+                }
+            }
+        }
+        return (false, 0); // All media blocks are supported
     }
 
+    let mut sanitized = 0;
     for msg in messages.iter_mut() {
         if let Some(content) = msg.get_mut("content") {
-            sanitize_content_blocks(content, policy);
+            sanitized += sanitize_content_blocks_granular(content, policy, entry);
         }
     }
 
-    (true, count)
+    (sanitized > 0, count)
 }
 
 fn check_media_support(
@@ -416,9 +556,11 @@ fn check_media_support(
     non_vision_image_policy: &str,
 ) -> Result<(), (StatusCode, Json<Value>)> {
     let (has_image, has_video) = detect_media_types(messages);
+    let no_image_support = !entry.supports_image_url && !entry.supports_image_base64;
+    let no_video_support = !entry.supports_video_url && !entry.supports_video_base64;
 
-    // Image: reject only when policy is "reject" (otherwise sanitization handles it)
-    if has_image && !entry.supports_vision && non_vision_image_policy == "reject" {
+    // Image: reject only when policy is "reject" and model supports NO image source
+    if has_image && no_image_support && non_vision_image_policy == "reject" {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(json!({
@@ -434,8 +576,8 @@ fn check_media_support(
         ));
     }
 
-    // Video: always hard-reject (cannot meaningfully sanitize video)
-    if has_video && !entry.supports_video {
+    // Video: hard-reject only when model supports NO video source type
+    if has_video && no_video_support {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(json!({
@@ -450,6 +592,31 @@ fn check_media_support(
             })),
         ));
     }
+
+    // Reject policy: also reject if there are any unsupported media blocks
+    // (handles partial support cases like Kimi: base64 OK, URL not OK)
+    if non_vision_image_policy == "reject" {
+        for msg in messages {
+            if let Some(content) = msg.get("content") {
+                if has_unsupported_media(content, entry) {
+                    return Err((
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({
+                            "type": "error",
+                            "error": {
+                                "type": "invalid_request_error",
+                                "message": format!(
+                                    "This conversation contains image/video input in a format not supported by the selected backend model '{}'. Use a compatible format or switch models.",
+                                    display_name
+                                )
+                            }
+                        })),
+                    ));
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -576,6 +743,17 @@ async fn proxy_count_tokens(
         );
     }
 
+    // Apply thinking override for count_tokens
+    if matches!(entry.thinking, ThinkingOverride::Disabled)
+        && entry.provider_id != "minimax"
+        && !body.as_object().map_or(false, |o| o.contains_key("thinking"))
+    {
+        body["thinking"] = json!({"type": "disabled"});
+    }
+    if entry.force_thinking {
+        body["thinking"] = json!({"type": "enabled"});
+    }
+
     body["model"] = json!(entry.upstream_model);
 
     let client = build_reqwest_client();
@@ -652,6 +830,53 @@ async fn proxy_messages(
         && !body.as_object().map_or(false, |o| o.contains_key("thinking"))
     {
         body["thinking"] = json!({"type": "disabled"});
+    }
+
+    // Force thinking enabled for models that require it (e.g. kimi-k2.7-code).
+    // This overrides any user-provided thinking setting.
+    if entry.force_thinking {
+        let old_thinking = body.get("thinking").cloned();
+        body["thinking"] = json!({"type": "enabled"});
+        if old_thinking.as_ref().map_or(true, |v| v != &json!({"type": "enabled"})) {
+            tracing::info!(
+                "POST /v1/messages | model: {} -> {} | force_thinking: injected thinking=enabled (was {:?})",
+                model_in, entry.upstream_model, old_thinking
+            );
+        }
+    }
+
+    // Clean parameters for models with fixed parameter requirements (e.g. kimi-k2.7-code).
+    // temperature=1.0, top_p=0.95, n=1, presence_penalty=0.0, frequency_penalty=0.0
+    if entry.force_thinking {
+        let mut cleaned = Vec::new();
+        let allowed_params = [
+            ("temperature", json!(1.0)),
+            ("top_p", json!(0.95)),
+            ("n", json!(1)),
+            ("presence_penalty", json!(0.0)),
+            ("frequency_penalty", json!(0.0)),
+        ];
+        for (key, allowed_val) in &allowed_params {
+            if let Some(current) = body.get(*key) {
+                if current != allowed_val {
+                    tracing::info!(
+                        "POST /v1/messages | model: {} -> {} | param_clean: {} {:?} -> {}",
+                        model_in, entry.upstream_model, key, current, allowed_val
+                    );
+                    body[*key] = allowed_val.clone();
+                    cleaned.push(*key);
+                }
+            } else {
+                body[*key] = allowed_val.clone();
+                cleaned.push(*key);
+            }
+        }
+        if !cleaned.is_empty() {
+            tracing::info!(
+                "POST /v1/messages | model: {} -> {} | params_set: {}",
+                model_in, entry.upstream_model, cleaned.join(", ")
+            );
+        }
     }
 
     // Rewrite model to upstream model name

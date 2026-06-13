@@ -542,6 +542,24 @@ pub struct ModelEntry {
     pub supports_video: Option<bool>,
     #[serde(default = "default_visible")]
     pub visible: bool,
+    /// If true, always force `thinking: { type: "enabled" }` upstream
+    #[serde(default)]
+    pub force_thinking: Option<bool>,
+    /// If false, the model does not support non-thinking mode
+    #[serde(default)]
+    pub supports_non_thinking: Option<bool>,
+    /// Can receive image blocks with source.type = "url"
+    #[serde(default)]
+    pub supports_image_url: Option<bool>,
+    /// Can receive image blocks with source.type = "base64"
+    #[serde(default)]
+    pub supports_image_base64: Option<bool>,
+    /// Can receive video blocks with source.type = "url"
+    #[serde(default)]
+    pub supports_video_url: Option<bool>,
+    /// Can receive video blocks with source.type = "base64"
+    #[serde(default)]
+    pub supports_video_base64: Option<bool>,
 }
 
 fn default_visible() -> bool { true }

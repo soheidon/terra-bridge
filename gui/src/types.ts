@@ -17,6 +17,12 @@ export interface ModelEntry {
   supports_vision?: boolean;
   supports_video?: boolean;
   visible?: boolean;
+  force_thinking?: boolean;
+  supports_non_thinking?: boolean;
+  supports_image_url?: boolean;
+  supports_image_base64?: boolean;
+  supports_video_url?: boolean;
+  supports_video_base64?: boolean;
 }
 
 export interface ProviderConfig {

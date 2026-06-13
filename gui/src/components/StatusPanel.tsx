@@ -41,28 +41,38 @@ export default function StatusPanel({ health, healthError, healthLoading, refres
     gateway: string;
     upstream: string;
     role: string;
-    visionVideo: boolean;
     thinking: string;
-    sanitizedVision: boolean; // non-vision model with replace policy
+    supports_image_url: boolean;
+    supports_image_base64: boolean;
+    supports_video_url: boolean;
+    supports_video_base64: boolean;
+    sanitizedVision: boolean;
   }
   const routedModels: RoutedModelRow[] = [];
   if (activeProvider?.models) {
     for (const shell of SHELL_MODELS) {
       const entry = activeProvider.models[shell.name];
       if (entry) {
-        const visionVideo = entry.supports_vision ?? activeProvider.supports_vision;
-        const thinking = entry.thinking === "disabled" ? "disabled" : "default";
+        const vis = entry.supports_vision ?? activeProvider.supports_vision;
+        const vid = entry.supports_video ?? activeProvider.supports_video;
+        const thinking = entry.thinking === "disabled" ? "disabled"
+          : entry.force_thinking ? "force"
+          : "default";
         routedModels.push({
           gateway: shell.name,
           upstream: entry.upstream_model,
           role: shell.role,
-          visionVideo,
           thinking,
-          sanitizedVision: !visionVideo,
+          supports_image_url: entry.supports_image_url ?? vis,
+          supports_image_base64: entry.supports_image_base64 ?? vis,
+          supports_video_url: entry.supports_video_url ?? vid,
+          supports_video_base64: entry.supports_video_base64 ?? vid,
+          sanitizedVision: !vis,
         });
       }
     }
   }
+  const capYesNo = (val: boolean) => val ? t("statusPanel.yes") : t("statusPanel.no");
 
   return (
     <div className="panel status-panel">
@@ -139,31 +149,61 @@ export default function StatusPanel({ health, healthError, healthLoading, refres
                     <th>{t("statusPanel.colGateway")}</th>
                     <th>{t("statusPanel.colUpstream")}</th>
                     <th>{t("statusPanel.colRole")}</th>
-                    <th>{t("statusPanel.colVision")}</th>
+                    <th>{t("statusPanel.colImgUrl")}</th>
+                    <th>{t("statusPanel.colImgB64")}</th>
+                    <th>{t("statusPanel.colVidUrl")}</th>
+                    <th>{t("statusPanel.colVidB64")}</th>
                     <th>{t("statusPanel.colThinking")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {routedModels.map(({ gateway, upstream, role, visionVideo, thinking, sanitizedVision }) => (
+                  {routedModels.map(({ gateway, upstream, role, thinking, supports_image_url, supports_image_base64, supports_video_url, supports_video_base64, sanitizedVision }) => (
                     <tr key={gateway}>
                       <td className="mono">{gateway}</td>
                       <td className="mono" style={{ color: "var(--text-muted)" }}>{upstream}</td>
                       <td style={{ fontWeight: 600 }}>{role}</td>
                       <td>
-                        {sanitizedVision && !visionVideo ? (
+                        {sanitizedVision && !supports_image_url ? (
                           <span className="badge badge-yellow" title={t("statusPanel.tileSanitizedHint")}>
                             {t("statusPanel.tileSanitized")}
                           </span>
                         ) : (
-                          <span className={`badge ${visionVideo ? "badge-green" : "badge-gray"}`}>
-                            {visionVideo ? t("statusPanel.yes") : t("statusPanel.no")}
+                          <span className={`badge ${supports_image_url ? "badge-green" : "badge-gray"}`}>
+                            {capYesNo(supports_image_url)}
                           </span>
                         )}
                       </td>
                       <td>
-                        <span className={`badge ${thinking === "disabled" ? "badge-blue" : "badge-gray"}`}>
-                          {thinking === "disabled" ? t("statusPanel.thinkingDisabled") : t("statusPanel.thinkingDefault")}
+                        {sanitizedVision && !supports_image_base64 ? (
+                          <span className="badge badge-yellow" title={t("statusPanel.tileSanitizedHint")}>
+                            {t("statusPanel.tileSanitized")}
+                          </span>
+                        ) : (
+                          <span className={`badge ${supports_image_base64 ? "badge-green" : "badge-gray"}`}>
+                            {capYesNo(supports_image_base64)}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`badge ${supports_video_url ? "badge-green" : "badge-gray"}`}>
+                          {capYesNo(supports_video_url)}
                         </span>
+                      </td>
+                      <td>
+                        <span className={`badge ${supports_video_base64 ? "badge-green" : "badge-gray"}`}>
+                          {capYesNo(supports_video_base64)}
+                        </span>
+                      </td>
+                      <td>
+                        {thinking === "force" ? (
+                          <span className="badge badge-purple">
+                            {t("statusPanel.thinkingOnly")}
+                          </span>
+                        ) : (
+                          <span className={`badge ${thinking === "disabled" ? "badge-blue" : "badge-gray"}`}>
+                            {thinking === "disabled" ? t("statusPanel.thinkingDisabled") : t("statusPanel.thinkingDefault")}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
