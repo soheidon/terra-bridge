@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "../i18n";
-import type { ApiKeyStatus, GatewayConfig, AllApiKeyStatus } from "../types";
+import type { ApiKeyStatus, GatewayConfig, AllApiKeyStatus, ModelEntry } from "../types";
 
 const COL_STYLE: React.CSSProperties = {
   padding: "6px 10px",
@@ -14,11 +14,13 @@ function ProviderRow({
   providerId,
   provider,
   keyStatus,
+  models,
   onRefresh,
 }: {
   providerId: string;
   provider: { display_name: string; api_key_env: string };
   keyStatus: ApiKeyStatus | null;
+  models: Record<string, ModelEntry> | undefined;
   onRefresh: () => void;
 }) {
   const { t } = useTranslation();
@@ -30,6 +32,23 @@ function ProviderRow({
   const [envVarSaving, setEnvVarSaving] = useState(false);
   const [envVarSaved, setEnvVarSaved] = useState(false);
   const [envVarError, setEnvVarError] = useState<string | null>(null);
+
+  // Model upstream edit state
+  const proModel = "claude-sonnet-4-6";
+  const flashModel = "claude-haiku-4-5";
+  const currentPro = models?.[proModel]?.upstream_model ?? "";
+  const currentFlash = models?.[flashModel]?.upstream_model ?? "";
+  const [proText, setProText] = useState(currentPro);
+  const [flashText, setFlashText] = useState(currentFlash);
+  const [modelProSaving, setModelProSaving] = useState(false);
+  const [modelFlashSaving, setModelFlashSaving] = useState(false);
+  const [modelProSaved, setModelProSaved] = useState(false);
+  const [modelFlashSaved, setModelFlashSaved] = useState(false);
+
+  useEffect(() => {
+    setProText(currentPro);
+    setFlashText(currentFlash);
+  }, [currentPro, currentFlash]);
 
   useEffect(() => {
     setEnvVarName(provider.api_key_env);
@@ -74,6 +93,22 @@ function ProviderRow({
     } catch (e) {
       setEnvVarSaving(false);
       setEnvVarError(String(e));
+    }
+  };
+
+  const handleSaveModel = async (modelKey: string, value: string, setSaving: (v: boolean) => void, setSaved: (v: boolean) => void) => {
+    if (!value.trim()) return;
+    setSaving(true);
+    setSaved(false);
+    try {
+      await invoke("set_model_upstream", { providerId, modelKey, upstreamModel: value.trim() });
+      setSaving(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      onRefresh();
+    } catch (e) {
+      setSaving(false);
+      console.error(e);
     }
   };
 
@@ -206,6 +241,74 @@ function ProviderRow({
             </button>
             {keySaved && <span className="saved-toast">{t("apiKeyPanel.saved")}</span>}
           </div>
+
+          {/* Gateway Pro model edit */}
+          {currentPro && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#1f2937", minWidth: 90 }}>
+                {t("apiKeyPanel.gatewayPro")}
+              </span>
+              <input
+                style={{
+                  width: 340,
+                  padding: "4px 8px",
+                  fontSize: 11,
+                  fontFamily: "var(--font-mono)",
+                  background: "#fff",
+                  color: "#1f2937",
+                  border: "1px solid #d0d7de",
+                  borderRadius: 4,
+                  outline: "none",
+                }}
+                value={proText}
+                onChange={(e) => setProText(e.target.value)}
+                placeholder={currentPro}
+                spellCheck={false}
+              />
+              <button
+                className="btn btn-primary btn-small"
+                onClick={() => handleSaveModel(proModel, proText, setModelProSaving, setModelProSaved)}
+                disabled={modelProSaving || !proText.trim() || proText.trim() === currentPro}
+              >
+                {modelProSaving ? "..." : t("apiKeyPanel.save")}
+              </button>
+              {modelProSaved && <span className="saved-toast">{t("apiKeyPanel.modelSaved")}</span>}
+            </div>
+          )}
+
+          {/* Gateway Flash model edit */}
+          {currentFlash && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#1f2937", minWidth: 90 }}>
+                {t("apiKeyPanel.gatewayFlash")}
+              </span>
+              <input
+                style={{
+                  width: 340,
+                  padding: "4px 8px",
+                  fontSize: 11,
+                  fontFamily: "var(--font-mono)",
+                  background: "#fff",
+                  color: "#1f2937",
+                  border: "1px solid #d0d7de",
+                  borderRadius: 4,
+                  outline: "none",
+                }}
+                value={flashText}
+                onChange={(e) => setFlashText(e.target.value)}
+                placeholder={currentFlash}
+                spellCheck={false}
+              />
+              <button
+                className="btn btn-primary btn-small"
+                onClick={() => handleSaveModel(flashModel, flashText, setModelFlashSaving, setModelFlashSaved)}
+                disabled={modelFlashSaving || !flashText.trim() || flashText.trim() === currentFlash}
+              >
+                {modelFlashSaving ? "..." : t("apiKeyPanel.save")}
+              </button>
+              {modelFlashSaved && <span className="saved-toast">{t("apiKeyPanel.modelSaved")}</span>}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -280,6 +383,7 @@ export default function ApiKeyPanel() {
             providerId={id}
             provider={provider}
             keyStatus={allKeyStatus?.[id] ?? null}
+            models={provider.models}
             onRefresh={refresh}
           />
         ))}

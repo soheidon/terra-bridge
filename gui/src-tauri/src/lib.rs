@@ -358,6 +358,71 @@ fn update_provider_api_key_env(provider_id: String, api_key_env: String) -> Resu
 }
 
 // ---------------------------------------------------------------------------
+// Command 3y: Update upstream model for a specific gateway model
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+fn set_model_upstream(provider_id: String, model_key: String, upstream_model: String) -> Result<(), String> {
+    if upstream_model.trim().is_empty() {
+        return Err("upstream_model cannot be empty".into());
+    }
+
+    let path = config_path();
+    let bytes =
+        std::fs::read(&path).map_err(|e| format!("Cannot read config.json: {}", e))?;
+
+    // Detect encoding
+    let (encoding, mut cfg) = match String::from_utf8(bytes.clone()) {
+        Ok(s) => ("UTF-8", serde_json::from_str::<serde_json::Value>(&s)
+            .map_err(|e| format!("Invalid JSON: {}", e))?),
+        Err(_) => {
+            let (decoded, _, had_errors) = encoding_rs::SHIFT_JIS.decode(&bytes);
+            if had_errors {
+                return Err("Cannot decode config.json".into());
+            }
+            ("Shift-JIS", serde_json::from_str::<serde_json::Value>(&decoded.into_owned())
+                .map_err(|e| format!("Invalid JSON: {}", e))?)
+        }
+    };
+
+    let providers = cfg["providers"]
+        .as_object_mut()
+        .ok_or("config.json missing 'providers' key")?;
+    let provider = providers
+        .get_mut(&provider_id)
+        .ok_or_else(|| format!("Provider '{}' not found in config", provider_id))?;
+
+    // Update models.<model_key>.upstream_model
+    let models = provider["models"]
+        .as_object_mut()
+        .ok_or_else(|| format!("Provider '{}' has no 'models' key", provider_id))?;
+    let model_entry = models
+        .get_mut(&model_key)
+        .ok_or_else(|| format!("Model '{}' not found in provider '{}'", model_key, provider_id))?;
+    model_entry["upstream_model"] = serde_json::Value::String(upstream_model.clone());
+
+    // Also update model_map for backward compat
+    if let Some(model_map) = provider["model_map"].as_object_mut() {
+        model_map.insert(model_key, serde_json::Value::String(upstream_model));
+    }
+
+    // Write back preserving encoding
+    let json_str = serde_json::to_string_pretty(&cfg).map_err(|e| format!("JSON error: {}", e))?;
+    let output = match encoding {
+        "Shift-JIS" => {
+            let (encoded, _, had_errors) = encoding_rs::SHIFT_JIS.encode(&json_str);
+            if had_errors {
+                return Err("Cannot encode config as Shift-JIS".into());
+            }
+            encoded.into_owned()
+        }
+        _ => json_str.into_bytes(),
+    };
+    std::fs::write(&path, &output).map_err(|e| format!("Cannot write config.json: {}", e))?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Command 17: Check all API keys
 // ---------------------------------------------------------------------------
 
@@ -1162,6 +1227,7 @@ pub fn run() {
             create_new_log,
             set_env_api_key,
             update_provider_api_key_env,
+            set_model_upstream,
             check_all_api_keys,
             update_active_provider,
             start_proxy,

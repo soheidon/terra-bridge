@@ -153,6 +153,9 @@ export const translations = {
   "apiKeyPanel.noVision": "No",
   "apiKeyPanel.edit": "Edit",
   "apiKeyPanel.collapse": "Close",
+  "apiKeyPanel.gatewayPro": "Gateway Pro →",
+  "apiKeyPanel.gatewayFlash": "Gateway Flash →",
+  "apiKeyPanel.modelSaved": "Saved!",
 } as const;
 
 export type TranslationKey = keyof typeof translations;

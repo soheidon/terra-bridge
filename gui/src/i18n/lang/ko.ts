@@ -155,4 +155,7 @@ export const translations: TranslationMap = {
   "apiKeyPanel.noVision": "지원 안 함",
   "apiKeyPanel.edit": "편집",
   "apiKeyPanel.collapse": "닫기",
+  "apiKeyPanel.gatewayPro": "Gateway Pro →",
+  "apiKeyPanel.gatewayFlash": "Gateway Flash →",
+  "apiKeyPanel.modelSaved": "저장됨",
 };

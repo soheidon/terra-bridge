@@ -155,4 +155,7 @@ export const translations: TranslationMap = {
   "apiKeyPanel.noVision": "不支持",
   "apiKeyPanel.edit": "编辑",
   "apiKeyPanel.collapse": "关闭",
+  "apiKeyPanel.gatewayPro": "Gateway Pro →",
+  "apiKeyPanel.gatewayFlash": "Gateway Flash →",
+  "apiKeyPanel.modelSaved": "已保存",
 };
