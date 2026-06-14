@@ -1,12 +1,12 @@
 [English](README.md) | [日本語](README.ja.md) | [中文(简体)](README.zh-CN.md)
 
-# Terra Bridge
+# Anthro Bridge
 
 ## Overview
 
-Terra Bridge is a proxy + GUI management tool that routes Claude Desktop / Claude Code API requests through multiple providers' Anthropic-compatible endpoints.
+Anthro Bridge is a proxy + GUI management tool that routes Claude Desktop / Claude Code API requests through multiple providers' Anthropic-compatible endpoints.
 
-Terra Bridge reads the `model` field from each request and automatically routes to the correct upstream provider (model-based routing). Only the `model` field is rewritten — messages, thinking blocks, tool_use, tool_result, and streaming SSE pass through untouched.
+Anthro Bridge reads the `model` field from each request and automatically routes to the correct upstream provider (model-based routing). Only the `model` field is rewritten — messages, thinking blocks, tool_use, tool_result, and streaming SSE pass through untouched.
 
 The GUI management tool (Tauri v2 + React 19 + TypeScript) provides start/stop control, config editing, log viewing, and API key management from a native Windows window.
 
@@ -16,7 +16,7 @@ Claude Desktop / Claude Code fundamentally expects Anthropic's API format and Cl
 
 In particular, **Claude Desktop's `inferenceModels[].name` only accepts Anthropic official model names**. Gateway custom names like `claude-deepseek-v4` or `kimi-k2.6` are rejected as `"not an Anthropic model"`.
 
-To work around this constraint, Terra Bridge **presents Anthropic official model names (`claude-sonnet-4-6` / `claude-haiku-4-5`) as "shells" to Claude Desktop, while the actual LLM (DeepSeek / MiniMax / Kimi) is selected in the GUI**.
+To work around this constraint, Anthro Bridge **presents Anthropic official model names (`claude-sonnet-4-6` / `claude-haiku-4-5`) as "shells" to Claude Desktop, while the actual LLM (DeepSeek / MiniMax / Kimi) is selected in the GUI**.
 
 ```
 Claude Desktop side (always fixed)
@@ -40,7 +40,7 @@ This lets you pass Claude Desktop's model name validation while freely switching
 
 #### 1. Install
 
-Download the latest installer from [Releases](https://github.com/soheidon/terra-bridge/releases) and run it.
+Download the latest installer from [Releases](https://github.com/soheidon/anthro-bridge/releases) and run it.
 
 The installer shows a language selection screen on launch (choose from English, 日本語, 中文(简体), 中文(繁體), 한국어, Français).
 
@@ -121,7 +121,7 @@ Advanced users can edit via Settings (⚙) -> **Gateway Config**.
 ### Project Structure
 
 ```
-terra-bridge/
+anthro-bridge/
 ├── README.md
 ├── README.ja.md               Japanese
 ├── README.zh-CN.md            Chinese Simplified

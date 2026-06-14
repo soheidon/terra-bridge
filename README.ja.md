@@ -1,12 +1,12 @@
 [English](README.md) | [日本語](README.ja.md) | [中文(简体)](README.zh-CN.md)
 
-# Terra Bridge
+# Anthro Bridge
 
 ## 日本語
 
 ### 概要
 
-複数プロバイダーの Anthropic 互換 API を Claude Desktop / Claude Code から利用するためのプロキシ + GUI 管理ツール「Terra Bridge」です。
+複数プロバイダーの Anthropic 互換 API を Claude Desktop / Claude Code から利用するためのプロキシ + GUI 管理ツール「Anthro Bridge」です。
 
 Anthropic Messages API リクエストの `model` フィールドを読み取り、対応する upstream へ自動振り分け（モデルベースルーティング）。変更するのは `model` フィールドのみで、messages / thinking / tool_use / tool_result / streaming SSE は一切改変しません。
 
@@ -18,7 +18,7 @@ Claude Desktop / Claude Code は、基本的にAnthropicのAPI形式とClaude系
 
 特に **Claude Desktop の `inferenceModels[].name` には Anthropic 公式モデル名しか指定できません**。`claude-deepseek-v4` や `kimi-k2.6` のようなゲートウェイ独自名は `"not an Anthropic model"` として弾かれます。
 
-Terra Bridge はこの制約を回避するため、**Claude Desktop には常に Anthropic 公式モデル名（`claude-sonnet-4-6` / `claude-haiku-4-5`）を「器」として見せ、実際に使う LLM（DeepSeek / MiniMax / Kimi）は GUI で切り替える**設計を採用しています。
+Anthro Bridge はこの制約を回避するため、**Claude Desktop には常に Anthropic 公式モデル名（`claude-sonnet-4-6` / `claude-haiku-4-5`）を「器」として見せ、実際に使う LLM（DeepSeek / MiniMax / Kimi）は GUI で切り替える**設計を採用しています。
 
 ```
 Claude Desktop 側（常に固定）
@@ -42,7 +42,7 @@ Claude Desktop 側（常に固定）
 
 #### 1. インストール
 
-[Releases](https://github.com/soheidon/terra-bridge/releases) から最新のインストーラーをダウンロードして実行。
+[Releases](https://github.com/soheidon/anthro-bridge/releases) から最新のインストーラーをダウンロードして実行。
 
 インストーラー起動時に言語選択画面が表示されます（English, 日本語, 中文(简体), 中文(繁體), 한국어, Français から選択可）。
 
@@ -123,7 +123,7 @@ Windows ユーザー環境変数に永続保存されます。
 ### プロジェクト構成
 
 ```
-terra-bridge/
+anthro-bridge/
 ├── README.md                  英語
 ├── README.ja.md               日本語
 ├── README.zh-CN.md            中国語(簡体)

@@ -1,7 +1,7 @@
 {
-  "productName": "Terra Bridge",
+  "productName": "Anthro Bridge",
   "version": "0.8.0",
-  "identifier": "com.soheidon.terra-bridge",
+  "identifier": "com.soheidon.anthro-bridge",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -41,7 +41,7 @@
   "app": {
     "windows": [
       {
-        "title": "Terra Bridge",
+        "title": "Anthro Bridge",
         "width": 1100,
         "height": 680,
         "minWidth": 900,

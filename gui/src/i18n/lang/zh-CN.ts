@@ -4,7 +4,7 @@ export const nativeName = "中文(简体)";
 
 export const translations: TranslationMap = {
   // Header
-  "header.title": "Terra Bridge",
+  "header.title": "Anthro Bridge",
   "header.gatewayRunning": "网关: 运行中",
   "header.gatewayStopped": "网关: 已停止",
   "header.gatewayDetected": "网关: 外部运行中",

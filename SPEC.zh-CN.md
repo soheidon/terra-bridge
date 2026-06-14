@@ -1,6 +1,6 @@
 [English](SPEC.md) | [日本語](SPEC.ja.md) | [中文(简体)](SPEC.zh-CN.md)
 
-# SPEC: Terra Bridge
+# SPEC: Anthro Bridge
 
 ## 中文(简体)
 
@@ -51,7 +51,7 @@ Tauri v2 + React 19 + TypeScript 构建。仪表板 + 设置双面板布局。
 
 ```
 +------------------------------------------+
-|  Terra Bridge                   |
+|  Anthro Bridge                   |
 |  [Start/Stop Gateway] [Status]    [=]   |
 +------------------------------------------+
 |  Dashboard                                |

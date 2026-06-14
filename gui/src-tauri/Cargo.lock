@@ -42,6 +42,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "anthro-bridge"
+version = "0.8.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "encoding_rs",
+ "futures",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tokio",
+ "tower-http",
+ "tracing",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3655,24 +3673,6 @@ checksum = "c4790fc369d5a530f4b544b094e31388b9b3a37c0f4652ade4505945f5660d24"
 dependencies = [
  "new_debug_unreachable",
  "utf-8",
-]
-
-[[package]]
-name = "terra-bridge"
-version = "0.8.0"
-dependencies = [
- "axum",
- "chrono",
- "encoding_rs",
- "futures",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tokio",
- "tower-http",
- "tracing",
 ]
 
 [[package]]

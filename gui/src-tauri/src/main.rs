@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    terra_bridge_lib::run()
+    anthro_bridge_lib::run()
 }

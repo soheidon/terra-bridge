@@ -1,14 +1,14 @@
 [English](README.md) | [日本語](README.ja.md) | [中文(简体)](README.zh-CN.md)
 
-# Terra Bridge
+# Anthro Bridge
 
 ## 中文(简体)
 
 ### 概述
 
-Terra Bridge 是一个代理 + GUI 管理工具，可将 Claude Desktop / Claude Code 的 API 请求路由到多个提供商的 Anthropic 兼容端点。
+Anthro Bridge 是一个代理 + GUI 管理工具，可将 Claude Desktop / Claude Code 的 API 请求路由到多个提供商的 Anthropic 兼容端点。
 
-Terra Bridge 读取每个请求中的 `model` 字段，并自动路由到正确的上游提供商（基于模型的路由）。仅重写 `model` 字段 — messages、thinking blocks、tool_use、tool_result 和 streaming SSE 均原样透传。
+Anthro Bridge 读取每个请求中的 `model` 字段，并自动路由到正确的上游提供商（基于模型的路由）。仅重写 `model` 字段 — messages、thinking blocks、tool_use、tool_result 和 streaming SSE 均原样透传。
 
 GUI 管理工具（Tauri v2 + React 19 + TypeScript）在原生 Windows 窗口中提供启动/停止控制、配置编辑、日志查看和 API 密钥管理功能。
 
@@ -18,7 +18,7 @@ Claude Desktop / Claude Code 从根本上依赖 Anthropic 的 API 格式和 Clau
 
 特别是 **Claude Desktop 的 `inferenceModels[].name` 只接受 Anthropic 官方模型名称**。像 `claude-deepseek-v4` 或 `kimi-k2.6` 这样的网关自定义名称会被拒绝，提示 `"not an Anthropic model"`。
 
-为了解决这个限制，Terra Bridge **始终向 Claude Desktop 展示 Anthropic 官方模型名称（`claude-sonnet-4-6` / `claude-haiku-4-5`）作为"外壳"，而实际使用的 LLM（DeepSeek / MiniMax / Kimi）则在 GUI 中选择**。
+为了解决这个限制，Anthro Bridge **始终向 Claude Desktop 展示 Anthropic 官方模型名称（`claude-sonnet-4-6` / `claude-haiku-4-5`）作为"外壳"，而实际使用的 LLM（DeepSeek / MiniMax / Kimi）则在 GUI 中选择**。
 
 ```
 Claude Desktop 侧（始终固定）
@@ -42,7 +42,7 @@ Claude Desktop 侧（始终固定）
 
 #### 1. 安装
 
-从 [Releases](https://github.com/soheidon/terra-bridge/releases) 下载最新安装程序并运行。
+从 [Releases](https://github.com/soheidon/anthro-bridge/releases) 下载最新安装程序并运行。
 
 安装程序启动时会显示语言选择界面（可选 English, 日本語, 中文(简体), 中文(繁體), 한국어, Français）。
 
@@ -123,7 +123,7 @@ Claude Desktop 侧（始终固定）
 ### 项目结构
 
 ```
-terra-bridge/
+anthro-bridge/
 ├── README.md                  英语
 ├── README.ja.md               日语
 ├── README.zh-CN.md            中文(简体)
