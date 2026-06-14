@@ -1,4 +1,4 @@
-[English](README.md) | [日本語](README.ja.md) | [中文(简体)](README.zh-CN.md)
+[English](README.md) | [日本語](docs/README.ja.md) | [中文(简体)](docs/README.zh-CN.md)
 
 # Anthro Bridge
 
@@ -67,7 +67,7 @@ Click **Start Gateway** in the header. The proxy starts on `http://127.0.0.1:400
 
 #### 5. Configure Claude Desktop / Cowork on 3P
 
-See [THIRD_PARTY_INFERENCE.md](THIRD_PARTY_INFERENCE.md) for detailed step-by-step instructions.
+See [docs/THIRD_PARTY_INFERENCE.md](docs/THIRD_PARTY_INFERENCE.md) for detailed step-by-step instructions.
 
 ### Endpoints
 
@@ -108,14 +108,15 @@ Advanced users can edit via Settings (⚙) -> **Gateway Config**.
 ```
 anthro-bridge/
 ├── README.md
-├── README.ja.md               Japanese
-├── README.zh-CN.md            Chinese Simplified
-├── THIRD_PARTY_INFERENCE.md   Third-party inference guide
-├── THIRD_PARTY_INFERENCE.ja.md
-├── THIRD_PARTY_INFERENCE.zh-CN.md
 ├── SPEC.md                    Specification
-├── SPEC.ja.md                 Japanese
-├── SPEC.zh-CN.md              Chinese Simplified
+├── docs/
+│   ├── README.ja.md           Japanese
+│   ├── README.zh-CN.md        Chinese Simplified
+│   ├── SPEC.ja.md             Japanese
+│   ├── SPEC.zh-CN.md          Chinese Simplified
+│   ├── THIRD_PARTY_INFERENCE.md   Third-party inference guide
+│   ├── THIRD_PARTY_INFERENCE.ja.md
+│   └── THIRD_PARTY_INFERENCE.zh-CN.md
 ├── LICENSE                    MIT License
 ├── config.json                Provider configuration
 ├── .gitignore

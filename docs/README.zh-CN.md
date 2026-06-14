@@ -1,4 +1,4 @@
-[English](README.md) | [日本語](README.ja.md) | [中文(简体)](README.zh-CN.md)
+[English](../README.md) | [日本語](README.ja.md) | [中文(简体)](README.zh-CN.md)
 
 # Anthro Bridge
 
@@ -110,14 +110,15 @@ Claude Desktop 侧（始终固定）
 ```
 anthro-bridge/
 ├── README.md                  英语
-├── README.ja.md               日语
-├── README.zh-CN.md            中文(简体)
-├── THIRD_PARTY_INFERENCE.md   第三方推理指南
-├── THIRD_PARTY_INFERENCE.ja.md
-├── THIRD_PARTY_INFERENCE.zh-CN.md
 ├── SPEC.md                    规格说明
-├── SPEC.ja.md                 日语
-├── SPEC.zh-CN.md              中文(简体)
+├── docs/
+│   ├── README.ja.md           日语
+│   ├── README.zh-CN.md        中文(简体)
+│   ├── SPEC.ja.md             日语
+│   ├── SPEC.zh-CN.md          中文(简体)
+│   ├── THIRD_PARTY_INFERENCE.md   第三方推理指南
+│   ├── THIRD_PARTY_INFERENCE.ja.md
+│   └── THIRD_PARTY_INFERENCE.zh-CN.md
 ├── LICENSE                    MIT 许可证
 ├── config.json                提供商配置
 ├── .gitignore

@@ -1,4 +1,4 @@
-[English](README.md) | [日本語](README.ja.md) | [中文(简体)](README.zh-CN.md)
+[English](../README.md) | [日本語](README.ja.md) | [中文(简体)](README.zh-CN.md)
 
 # Anthro Bridge
 
@@ -110,14 +110,15 @@ Windows ユーザー環境変数に永続保存されます。
 ```
 anthro-bridge/
 ├── README.md                  英語
-├── README.ja.md               日本語
-├── README.zh-CN.md            中国語(簡体)
-├── THIRD_PARTY_INFERENCE.md   サードパーティ推論ガイド
-├── THIRD_PARTY_INFERENCE.ja.md
-├── THIRD_PARTY_INFERENCE.zh-CN.md
 ├── SPEC.md                    仕様書
-├── SPEC.ja.md                 日本語
-├── SPEC.zh-CN.md              中国語(簡体)
+├── docs/
+│   ├── README.ja.md           日本語
+│   ├── README.zh-CN.md        中国語(簡体)
+│   ├── SPEC.ja.md             日本語
+│   ├── SPEC.zh-CN.md          中国語(簡体)
+│   ├── THIRD_PARTY_INFERENCE.md   サードパーティ推論ガイド
+│   ├── THIRD_PARTY_INFERENCE.ja.md
+│   └── THIRD_PARTY_INFERENCE.zh-CN.md
 ├── LICENSE                    MIT License
 ├── config.json                プロバイダー設定
 ├── .gitignore
