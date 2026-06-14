@@ -8,6 +8,8 @@ Anthro Bridge is a proxy + GUI management tool that routes Claude Desktop / Clau
 
 Anthro Bridge reads the `model` field from each request and automatically routes to the correct upstream provider (model-based routing). Only the `model` field is rewritten — messages, thinking blocks, tool_use, tool_result, and streaming SSE pass through untouched.
 
+Anthro Bridge is not a fork, GUI, or companion app for Moon Bridge; it is an independent Anthropic-compatible gateway.
+
 The GUI management tool (Tauri v2 + React 19 + TypeScript) provides start/stop control, config editing, log viewing, and API key management from a native Windows window.
 
 ### Why This Gateway Is Needed

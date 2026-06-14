@@ -10,6 +10,8 @@ Anthro Bridge 是一个代理 + GUI 管理工具，可将 Claude Desktop / Claud
 
 Anthro Bridge 读取每个请求中的 `model` 字段，并自动路由到正确的上游提供商（基于模型的路由）。仅重写 `model` 字段 — messages、thinking blocks、tool_use、tool_result 和 streaming SSE 均原样透传。
 
+Anthro Bridge 不是 Moon Bridge 的分支、GUI 版本或配套应用，而是一个独立的 Anthropic 兼容网关。
+
 GUI 管理工具（Tauri v2 + React 19 + TypeScript）在原生 Windows 窗口中提供启动/停止控制、配置编辑、日志查看和 API 密钥管理功能。
 
 ### 为什么需要这个网关

@@ -10,6 +10,8 @@
 
 Anthropic Messages API リクエストの `model` フィールドを読み取り、対応する upstream へ自動振り分け（モデルベースルーティング）。変更するのは `model` フィールドのみで、messages / thinking / tool_use / tool_result / streaming SSE は一切改変しません。
 
+Anthro Bridge は Moon Bridge のフォーク、GUI版、補助アプリではなく、独立した Anthropic互換ゲートウェイです。
+
 GUI 管理ツール（Tauri v2 + React 19 + TypeScript）でプロキシの起動・停止、設定編集、ログ確認、API キー管理が可能です。
 
 ### なぜこのゲートウェイが必要か
