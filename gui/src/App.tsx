@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import Header from "./components/Header";
 import ProviderTiles from "./components/ProviderTiles";
 import StatusPanel from "./components/StatusPanel";
@@ -29,6 +30,43 @@ function AppContent() {
     invoke<boolean>("is_first_run")
       .then(setFirstRun)
       .catch(() => setFirstRun(false));
+  }, []);
+
+  // Force window to minimum size after OS-level state restoration
+  useEffect(() => {
+    console.log("[build-marker] window resize fix v3 loaded");
+    const win = getCurrentWindow();
+    const TARGET_W = 1100;
+    const TARGET_H = 800;
+
+    const attempt = async (label: string) => {
+      try {
+        const outer = await win.outerSize();
+        const inner = await win.innerSize();
+        const jsW = window.innerWidth;
+        const jsH = window.innerHeight;
+        console.log(`[window-size] ${label} outer=${outer.width}x${outer.height} inner=${inner.width}x${inner.height} js=${jsW}x${jsH}`);
+
+        if (inner.width >= TARGET_W && inner.height >= TARGET_H) {
+          console.log(`[window-size] ${label} already at target, skip`);
+          return true;
+        }
+
+        await win.setSize(new LogicalSize(TARGET_W, TARGET_H));
+
+        const outer2 = await win.outerSize();
+        const inner2 = await win.innerSize();
+        console.log(`[window-size] ${label} after-setSize outer=${outer2.width}x${outer2.height} inner=${inner2.width}x${inner2.height} js=${window.innerWidth}x${window.innerHeight}`);
+        return true;
+      } catch (e) {
+        console.error(`[window-size] ${label} error:`, e);
+        return false;
+      }
+    };
+
+    attempt("mount");
+    setTimeout(() => attempt("+300ms"), 300);
+    setTimeout(() => attempt("+1000ms"), 1000);
   }, []);
 
   const proxyStatus = useMemo(() => {

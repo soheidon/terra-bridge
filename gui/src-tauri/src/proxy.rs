@@ -269,7 +269,14 @@ pub fn resolve_proxy_config(cfg: &GatewayConfigResponse) -> Result<ProxyConfig, 
             continue; // Skip providers not used by any active model route
         }
         let p = &cfg.providers[*provider_id];
-        let api_key = std::env::var(&p.api_key_env).map_err(|_| {
+        let api_key = std::env::var(&p.api_key_env).or_else(|_| {
+            // Legacy fallback: MIMO_API_KEY was renamed to XIAOMI_API_KEY
+            if provider_id.as_str() == "mimo" {
+                std::env::var("MIMO_API_KEY")
+            } else {
+                Err(std::env::VarError::NotPresent)
+            }
+        }).map_err(|_| {
             format!(
                 "{} not set — set it in the API Key tab first.",
                 p.api_key_env

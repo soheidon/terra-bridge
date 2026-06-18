@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::net::TcpStream;
 use std::sync::Mutex;
 use std::os::windows::process::CommandExt;
+use tauri::Manager;
 use tokio::sync::oneshot;
 
 mod proxy;
@@ -158,6 +159,58 @@ fn merge_bundled_providers(user_config: &PathBuf) {
                                 .and_then(|ms| ms.get(mkey))
                             {
                                 user_models[mkey] = tm.clone();
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Migrate MIMO_API_KEY → XIAOMI_API_KEY, display_name, and thinking mode for existing users
+    if let Some(providers) = user_cfg.get_mut("providers") {
+        if providers.get("mimo").is_none() {
+            // No MiMo provider — skip migration
+        } else {
+            tracing::info!("merge_bundled_providers: checking MiMo migration needs");
+            // Collect migration needs first (immutable borrow)
+            let mut migrate_api_key = false;
+            let mut migrate_display_name = false;
+            let mut migrate_thinking = false;
+            if let Some(mimo) = providers.get("mimo") {
+                if mimo.get("api_key_env").and_then(|v| v.as_str()) == Some("MIMO_API_KEY") {
+                    migrate_api_key = true;
+                }
+                if mimo.get("display_name").and_then(|v| v.as_str()) == Some("MiMo") {
+                    migrate_display_name = true;
+                }
+                if let Some(models) = mimo.get("models") {
+                    if let Some(sonnet) = models.get("claude-sonnet-4-6") {
+                        if sonnet.get("thinking_mode").is_none() &&
+                           sonnet.get("thinking").and_then(|v| v.as_str()) == Some("default")
+                        {
+                            migrate_thinking = true;
+                        }
+                    }
+                }
+            }
+            // Apply mutations (mutable borrows)
+            if migrate_api_key {
+                providers["mimo"]["api_key_env"] = serde_json::Value::String("XIAOMI_API_KEY".into());
+                changed = true;
+            }
+            if migrate_display_name {
+                providers["mimo"]["display_name"] = serde_json::Value::String("MiMo / Xiaomi".into());
+                changed = true;
+            }
+            if migrate_thinking {
+                if let Some(models) = providers["mimo"].get_mut("models") {
+                    if let Some(obj) = models.as_object_mut() {
+                        if let Some(sonnet) = obj.get_mut("claude-sonnet-4-6") {
+                            if let Some(obj2) = sonnet.as_object_mut() {
+                                obj2.remove("thinking");
+                                obj2.insert("thinking_mode".into(), serde_json::Value::String("thinking".into()));
                                 changed = true;
                             }
                         }
@@ -1526,6 +1579,12 @@ fn proxy_status(state: tauri::State<'_, ProxyState>) -> Result<bool, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_min_size(Some(tauri::PhysicalSize::new(1100, 800)));
+            }
+            Ok(())
+        })
         .manage(ProxyState::new())
         .invoke_handler(tauri::generate_handler![
             check_health,
