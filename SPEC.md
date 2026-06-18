@@ -1,4 +1,4 @@
-[English](SPEC.md) | [日本語](docs/SPEC.ja.md) | [中文(简体)](docs/SPEC.zh-CN.md) | [Deutsch](docs/SPEC.de.md) | [Español](docs/SPEC.es.md)
+[English](SPEC.md) | [日本語](docs/SPEC.ja.md) | [中文(简体)](docs/SPEC.zh-CN.md) | [中文(繁體)](docs/SPEC.zh-TW.md) | [한국어](docs/SPEC.ko.md) | [Français](docs/SPEC.fr.md) | [Deutsch](docs/SPEC.de.md) | [Español](docs/SPEC.es.md)
 
 # SPEC: Anthro Bridge
 
