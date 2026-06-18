@@ -1,4 +1,4 @@
-[English](README.md) | [日本語](docs/README.ja.md) | [中文(简体)](docs/README.zh-CN.md)
+[English](README.md) | [日本語](docs/README.ja.md) | [中文(简体)](docs/README.zh-CN.md) | [Deutsch](docs/README.de.md) | [Español](docs/README.es.md)
 
 # Anthro Bridge
 
