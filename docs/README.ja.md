@@ -12,15 +12,24 @@ Anthropic Messages API リクエストの `model` フィールドを読み取り
 
 Anthro Bridge は Moon Bridge のフォーク、GUI版、補助アプリではなく、独立した Anthropic互換ゲートウェイです。
 
+### 対応プロバイダー
+
+| プロバイダーID | 表示名 | Upstream エンドポイント | デフォルトモデル |
+|---------------|--------|------------------------|-----------------|
+| `deepseek` | DeepSeek | `https://api.deepseek.com/anthropic` | `deepseek-v4-pro` |
+| `minimax` | MiniMax | `https://api.minimax.io/anthropic` | `MiniMax-M3` |
+| `kimi` | Kimi / Moonshot | `https://api.moonshot.cn/anthropic` | `kimi-k2.7-code` |
+| `mimo` | **MiMo / Xiaomi** | `https://api.xiaomimimo.com/anthropic` | `mimo-v2.5-pro` |
+
 GUI 管理ツール（Tauri v2 + React 19 + TypeScript）でプロキシの起動・停止、設定編集、ログ確認、API キー管理が可能です。
 
 ### なぜこのゲートウェイが必要か
 
-Claude Desktop / Claude Code は、基本的にAnthropicのAPI形式とClaude系のモデル名を前提に動作します。そのため、DeepSeek、MiniMax、Kimi などがAnthropic互換APIを提供していても、Claude Desktop / Claude Code からそれらを直接指定して常に利用できるとは限りません。
+Claude Desktop / Claude Code は、基本的にAnthropicのAPI形式とClaude系のモデル名を前提に動作します。そのため、DeepSeek、MiniMax、Kimi、MiMo などがAnthropic互換APIを提供していても、Claude Desktop / Claude Code からそれらを直接指定して常に利用できるとは限りません。
 
 特に **Claude Desktop の `inferenceModels[].name` には Anthropic 公式モデル名しか指定できません**。`claude-deepseek-v4` や `kimi-k2.6` のようなゲートウェイ独自名は `"not an Anthropic model"` として弾かれます。
 
-Anthro Bridge はこの制約を回避するため、**Claude Desktop には常に Anthropic 公式モデル名（`claude-sonnet-4-6` / `claude-haiku-4-5`）を「器」として見せ、実際に使う LLM（DeepSeek / MiniMax / Kimi）は GUI で切り替える**設計を採用しています。
+Anthro Bridge はこの制約を回避するため、**Claude Desktop には常に Anthropic 公式モデル名（`claude-sonnet-4-6` / `claude-haiku-4-5`）を「器」として見せ、実際に使う LLM（DeepSeek / MiniMax / Kimi / MiMo）は GUI で切り替える**設計を採用しています。
 
 ```
 Claude Desktop 側（常に固定）
@@ -28,17 +37,18 @@ Claude Desktop 側（常に固定）
   Haiku 4.5 = claude-haiku-4-5
 
 ゲートウェイ内部（GUI の選択による）
-  DeepSeek 選択時:  Sonnet -> deepseek-v4-pro,     Haiku -> deepseek-v4-flash
-  MiniMax 選択時:   Sonnet -> MiniMax-M3,           Haiku -> MiniMax-M3
-  Kimi 選択時:      Sonnet -> kimi-k2.7-code,      Haiku -> kimi-k2.6 (thinking disabled)
+  DeepSeek 選択時:      Sonnet -> deepseek-v4-pro,     Haiku -> deepseek-v4-flash
+  MiniMax 選択時:       Sonnet -> MiniMax-M3,           Haiku -> MiniMax-M3
+  Kimi 選択時:          Sonnet -> kimi-k2.7-code,      Haiku -> kimi-k2.6 (thinking disabled)
+  MiMo / Xiaomi 選択時: Sonnet -> mimo-v2.5-pro,      Haiku -> mimo-v2.5
 ```
 
-これにより、Claude Desktop のモデル名検証を通過しつつ、DeepSeek / MiniMax / Kimi を自由に切り替えられます。
+これにより、Claude Desktop のモデル名検証を通過しつつ、DeepSeek / MiniMax / Kimi / MiMo を自由に切り替えられます。
 
 ### 必要環境
 
 - **Windows 10/11**（日本語環境対応）
-- 利用するプロバイダーの API キー（DeepSeek / MiniMax / Kimi **いずれか1つでOK**、v0.5.0以降）
+- 利用するプロバイダーの API キー（DeepSeek / MiniMax / Kimi / MiMo **いずれか1つでOK**、v0.5.0以降）
 
 ### クイックスタート
 
@@ -53,15 +63,23 @@ Claude Desktop 側（常に固定）
 設定（⚙）-> **API キー** タブで、使用するプロバイダーの API キーを入力し「保存」をクリック。
 Windows ユーザー環境変数に永続保存されます。
 
-| プロバイダー | 環境変数 |
-|-------------|---------|
-| DeepSeek | `DEEPSEEK_API_KEY` |
-| MiniMax | `MINIMAX_API_KEY` |
-| Kimi / Moonshot | `MOONSHOT_API_KEY` |
+| プロバイダー | 環境変数 | 備考 |
+|-------------|---------|------|
+| DeepSeek | `DEEPSEEK_API_KEY` | |
+| MiniMax | `MINIMAX_API_KEY` | |
+| Kimi / Moonshot | `MOONSHOT_API_KEY` | |
+| MiMo / Xiaomi | `XIAOMI_API_KEY` | 旧 `MIMO_API_KEY` も legacy fallback として有効 |
 
 #### 3. プロバイダ選択
 
-ダッシュボードの **LLMプロバイダ選択** カードで使用するプロバイダ（DeepSeek / MiniMax / Kimi）をクリック。
+ダッシュボードの **LLMプロバイダ選択** カードは2×2グリッドで表示されます：
+
+```
+[ DeepSeek       ] [ MiMo / Xiaomi  ]
+[ MiniMax        ] [ Kimi / Moonshot]
+```
+
+使用するプロバイダをクリックして選択してください。
 
 #### 4. プロキシ起動
 
@@ -84,6 +102,18 @@ Windows ユーザー環境変数に永続保存されます。
 
 モデルベースルーティング: リクエストの `model` フィールドを読み取り、対応するプロバイダーと upstream モデルに自動振り分け。
 
+| Anthropic モデル | DeepSeek | MiniMax | Kimi | MiMo / Xiaomi |
+|------------------|----------|---------|------|---------------|
+| `claude-sonnet-4-6` | `deepseek-v4-pro` | `MiniMax-M3` | `kimi-k2.7-code` | `mimo-v2.5-pro` (Thinking 有効) |
+| `claude-haiku-4-5` | `deepseek-v4-flash` | `MiniMax-M3` | `kimi-k2.6` (Thinking 無効) | `mimo-v2.5` |
+
+#### MiMo ルーティング詳細
+
+- **`claude-sonnet-4-6` → `mimo-v2.5-pro`**: Thinking が**デフォルトで有効**（`thinking_mode: "thinking"`）。MiMo の thinking 制御には `thinking_mode` キーを使います（`thinking` ではありません）。標準モードにするには `"default"` を指定。
+- **`claude-haiku-4-5` → `mimo-v2.5`**: 画像URL・base64画像の pass-through に対応。音声・動画入力は Anthro Bridge では未対応。
+- **`claude-sonnet-4-6` ルートは画像非対応。** 画像が送信された場合はテキストプレースホルダに置換されます（`non_vision_image_policy: "replace"`）。
+- **Upstream エンドポイント**: `https://api.xiaomimimo.com/anthropic/v1/messages` にリクエストを送信します。
+
 ### 言語
 
 6言語対応: English, 日本語, 中文(简体), 中文(繁體), 한국어, Français。
@@ -99,7 +129,8 @@ Windows ユーザー環境変数に永続保存されます。
 | キー | 説明 |
 |-----|------|
 | `models.<model>.upstream_model` | upstream へ送る実モデル名（必須） |
-| `models.<model>.thinking` | `"disabled"` 時のみ thinking 抑制注入（省略可） |
+| `models.<model>.thinking` | `"disabled"` 時のみ thinking 抑制注入（省略可）。MiMo では `thinking_mode` を使用 |
+| `models.<model>.thinking_mode` | MiMo 専用: `"thinking"`（有効）または `"default"`（標準）。MiMo プロバイダーのみ使用 |
 | `models.<model>.supports_vision` | モデル単位の画像サポート（省略時はプロバイダー既定値） |
 | `models.<model>.supports_video` | モデル単位の動画サポート（省略時はプロバイダー既定値） |
 | `models.<model>.visible` | `/v1/models` とダッシュボードに表示するか（デフォルト `true`） |
@@ -161,7 +192,37 @@ taskkill /PID <PID> /F
 
 #### 画像/動画が拒否される
 
-DeepSeek は画像・動画に対応していません。画像が送信された場合は自動的にプレースホルダテキストに置換されます（`non_vision_image_policy: "replace"`）。画像をそのまま使いたい場合は MiniMax または Kimi を選択してください。動画は常に拒否されます。
+DeepSeek は画像・動画に対応していません。画像が送信された場合は自動的にプレースホルダテキストに置換されます（`non_vision_image_policy: "replace"`）。画像をそのまま使いたい場合は MiniMax、Kimi、または MiMo（`claude-haiku-4-5` ルート）を選択してください。
+
+MiMo の `claude-sonnet-4-6` ルートも画像非対応です。画像を使う場合は `claude-haiku-4-5` ルートを使用してください。動画は常に拒否されます。
+
+#### MiMo: 既存ユーザー設定が反映されない場合
+
+v0.9.0 より前からアップグレードした場合、保存済みのユーザー設定に古い `"display_name": "MiMo"`、`"api_key_env": "MIMO_API_KEY"`、`"thinking": "default"` が残っている可能性があります。v0.9.0 は初回起動時に自動移行を行いますが、問題がある場合は以下を試してください：
+
+1. **アプリを再起動** — 自動移行は起動時に実行されます。
+2. **設定をリセット**: `%APPDATA%\Anthro Bridge\config.json` を削除して再起動すると、正しい設定が適用された同梱configが使用されます。
+3. **手動確認**: `%APPDATA%\Anthro Bridge\config.json` を開き、`providers.mimo` に `"display_name": "MiMo / Xiaomi"`、`"api_key_env": "XIAOMI_API_KEY"`、およびモデルエントリに `thinking_mode`（`thinking` ではない）があることを確認してください。
+
+### 動作確認 — MiMo / Xiaomi
+
+#### テキストテスト（claude-sonnet-4-6 → mimo-v2.5-pro）
+
+1. 設定 → API キー タブで `XIAOMI_API_KEY` を設定し保存。
+2. ダッシュボードで **MiMo / Xiaomi** を選択。
+3. プロキシを起動。
+4. Claude Desktop からメッセージを送信し、thinking blocks 付きの応答が返ることを確認。
+
+#### 画像テスト（claude-haiku-4-5 → mimo-v2.5）
+
+1. ダッシュボードで **MiMo / Xiaomi** を選択。
+2. Claude Desktop で画像を添付してメッセージを送信。
+3. 画像が正しく認識・説明されることを確認。
+4. `claude-sonnet-4-6` に画像を送信した場合、テキストプレースホルダに置換されることを確認。
+
+#### 検証
+
+GUI の Log パネルで、リクエストの `model` フィールドがルートに応じて `mimo-v2.5-pro` または `mimo-v2.5` に書き換えられていることを確認してください。
 
 ### ライセンス
 
